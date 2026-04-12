@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -36,7 +37,7 @@ export default function Login() {
       <div style={styles.left}>
         <div style={styles.leftContent}>
           <div style={styles.logoRow}>
-            <div style={styles.logoIcon}>B</div>
+            <Image src="/logo.png" alt="BHAVEN" width={36} height={36} style={{ borderRadius: 8 }} />
             <span style={styles.logoText}>BHAVEN ERP</span>
           </div>
           <h1 style={styles.headline}>생산 예약 및 공정 관리<br />통합 관리 시스템</h1>

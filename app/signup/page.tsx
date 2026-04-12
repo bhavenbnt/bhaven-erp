@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import api from '@/lib/api';
 
 export default function Signup() {
@@ -46,7 +47,7 @@ export default function Signup() {
       <div style={styles.container}>
         <div style={styles.card}>
           <div style={styles.logoRow}>
-            <div style={styles.logoIcon}>B</div>
+            <Image src="/logo.png" alt="BHAVEN" width={28} height={28} style={{ borderRadius: 6 }} />
             <span style={styles.logoText}>BHAVEN ERP</span>
           </div>
           <div style={styles.successBox}>
@@ -65,7 +66,7 @@ export default function Signup() {
       <div style={styles.card}>
         {/* 로고 */}
         <div style={styles.logoRow}>
-          <div style={styles.logoIcon}>B</div>
+          <Image src="/logo.png" alt="BHAVEN" width={28} height={28} style={{ borderRadius: 6 }} />
           <span style={styles.logoText}>BHAVEN ERP</span>
         </div>
 

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import api from '@/lib/api';
@@ -120,7 +121,7 @@ export default function Sidebar() {
         <header style={m.header}>
           {/* 로고 */}
           <div style={m.logoArea}>
-            <div style={m.logoIcon}>B</div>
+            <Image src="/logo.png" alt="BHAVEN" width={32} height={32} style={{ borderRadius: 7 }} />
             <span style={m.logoText}>BHAVEN</span>
           </div>
 
@@ -168,7 +169,7 @@ export default function Sidebar() {
             <aside style={m.drawer}>
               {/* 드로어 헤더 */}
               <div style={styles.logo}>
-                <div style={styles.logoIcon}>B</div>
+                <Image src="/logo.png" alt="BHAVEN" width={36} height={36} style={{ borderRadius: 8 }} />
                 <div style={{ flex: 1 }}>
                   <div style={styles.logoTitle}>BHAVEN</div>
                   <div style={styles.logoSub}>{subLabel}</div>
@@ -219,7 +220,7 @@ export default function Sidebar() {
   return (
     <aside style={styles.sidebar}>
       <div style={styles.logo}>
-        <div style={styles.logoIcon}>B</div>
+        <Image src="/logo.png" alt="BHAVEN" width={36} height={36} style={{ borderRadius: 8 }} />
         <div style={{ flex: 1 }}>
           <div style={styles.logoTitle}>BHAVEN</div>
           <div style={styles.logoSub}>{subLabel}</div>
