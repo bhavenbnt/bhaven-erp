@@ -47,3 +47,14 @@ a {
     color-scheme: dark;
   }
 }
+
+/* Imported from frontend-customer/src/index.css */
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
