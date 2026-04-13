@@ -12,7 +12,6 @@ const CUSTOMER_NAV = [
   { path: '/dashboard', label: '대시보드' },
   { path: '/calendar', label: '예약 캘린더' },
   { path: '/reservations', label: '내 예약 현황' },
-  { path: '/equipment', label: '기기/설비' },
   { path: '/inquiries', label: '관리자 문의' },
   { path: '/profile', label: '프로필 설정' },
 ];
@@ -315,9 +314,9 @@ const styles: Record<string, React.CSSProperties> = {
   notiTime: { fontSize: 10, color: '#CCC' },
   nav: { flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 2 },
   navItem: {
-    display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px',
-    color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: 500,
-    textDecoration: 'none', borderRadius: 6,
+    display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+    color: 'rgba(255,255,255,0.45)', fontSize: 14, fontWeight: 500,
+    textDecoration: 'none', borderRadius: 6, height: 44,
     transition: 'background 0.15s, color 0.15s',
   },
   navActive: { background: '#B11F39', color: '#fff', fontWeight: 600 },
