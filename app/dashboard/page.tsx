@@ -6,18 +6,24 @@ import Link from 'next/link';
 import Layout from '@/components/Layout';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
+import { Icons } from '@/components/icons';
 
-// 브랜드 통일 색상 — 긴급도 기반 페이드 시스템
-// 긴급(burgundy) → 진행(dark) → 확정(mid) → 완료(light) → 취소(lightest)
 const STATUS_LABEL: Record<string, string> = {
   PENDING: '예약 대기', CONFIRMED: '예약 확정', IN_PROGRESS: '생산 중', COMPLETED: '완료', CANCELLED: '취소',
 };
-const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
-  PENDING:     { color: '#B11F39', bg: '#FDEDEF' },
-  IN_PROGRESS: { color: '#0A0A0A', bg: '#E8E8E8' },
-  CONFIRMED:   { color: '#555555', bg: '#F0F0F0' },
-  COMPLETED:   { color: '#888888', bg: '#F5F5F5' },
-  CANCELLED:   { color: '#AAAAAA', bg: '#F5F5F5' },
+const STATUS_STYLE: Record<string, { color: string; bg: string; border: string }> = {
+  PENDING:     { color: '#B11F39', bg: '#FDF2F4', border: '#F5D0D6' },
+  IN_PROGRESS: { color: '#0A0A0A', bg: '#F0F0F0', border: '#E0E0E0' },
+  CONFIRMED:   { color: '#555555', bg: '#F5F5F5', border: '#EBEBEB' },
+  COMPLETED:   { color: '#888888', bg: '#F8F8F8', border: '#EEEEEE' },
+  CANCELLED:   { color: '#AAAAAA', bg: '#FAFAFA', border: '#F0F0F0' },
+};
+
+const STAT_ICONS: Record<string, (color: string) => React.ReactNode> = {
+  inProgress: (c) => Icons.factory({ size: 16, color: c }),
+  pending: (c) => Icons.clipboard({ size: 16, color: c }),
+  completed: (c) => Icons.chart({ size: 16, color: c }),
+  next: (c) => Icons.calendar({ size: 16, color: c }),
 };
 
 export default function Dashboard() {
@@ -56,114 +62,199 @@ export default function Dashboard() {
 
   const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  const action = (
-    <button onClick={() => router.push('/calendar')} style={s.actionBtn}>+ 예약 신청</button>
-  );
-
   return (
-    <Layout title="대시보드" action={action}>
-      {/* 날짜 표시 */}
-      <div style={s.dateRow}>
-        <span style={s.dateText}>{dateStr}</span>
-      </div>
-
-      {/* 통계 카드 4개 - 1줄 */}
-      <div style={s.statsRow}>
-        {/* 카드1: 진행 중 - 다크 앵커 (유일한 반전 카드) */}
-        <div style={{ ...s.statCard, background: '#0A0A0A' }}>
-          <div style={{ ...s.statLabel, color: '#777' }}>진행 중</div>
-          <div style={{ ...s.statValue, color: '#FFFFFF' }}>{stats.inProgress}건</div>
-          <div style={{ ...s.statSub, color: '#555' }}>현재 생산 진행 중인 주문</div>
-        </div>
-        {/* 카드2~4: 동일한 흰 배경 + 통일된 다크 값 */}
-        <div style={s.statCard}>
-          <div style={s.statLabel}>예약 대기</div>
-          <div style={s.statValue}>{stats.pending}건</div>
-          <div style={s.statSub}>관리자 승인 대기 중</div>
-        </div>
-        <div style={s.statCard}>
-          <div style={s.statLabel}>이번 달 완료</div>
-          <div style={s.statValue}>{stats.completedThisMonth}건</div>
-          <div style={s.statSub}>{now.getMonth() + 1}월 누적 생산 완료</div>
-        </div>
-        <div style={s.statCard}>
-          <div style={s.statLabel}>다음 예약</div>
-          <div style={{ ...s.statValue, fontSize: 28 }}>
-            {stats.nextDate ? new Date(stats.nextDate).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }) : '-'}
+    <Layout
+      title=""
+      action={
+        <div style={s.topBar}>
+          <div style={s.topLeft}>
+            <h1 style={s.pageTitle}>대시보드</h1>
+            <span style={s.dateBadge}>
+              {Icons.calendar({ size: 12, color: '#999' })}
+              <span>{dateStr}</span>
+            </span>
           </div>
-          <div style={s.statSub}>{stats.nextProduct || '예정된 예약 없음'}</div>
+          <button onClick={() => router.push('/calendar')} style={s.actionBtn}>
+            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+            <span>예약 신청</span>
+          </button>
         </div>
+      }
+    >
+      {/* 통계 카드 4개 — 동일 높이 */}
+      <div style={s.statsRow}>
+        {([
+          { key: 'inProgress', label: '진행 중', value: `${stats.inProgress}`, unit: '건', sub: '현재 생산 진행 중', dark: true },
+          { key: 'pending', label: '예약 대기', value: `${stats.pending}`, unit: '건', sub: '관리자 승인 대기 중', dark: false },
+          { key: 'completed', label: '이번 달 완료', value: `${stats.completedThisMonth}`, unit: '건', sub: `${now.getMonth() + 1}월 누적 생산 완료`, dark: false },
+          { key: 'next', label: '다음 예약', value: stats.nextDate ? new Date(stats.nextDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '-', unit: '', sub: stats.nextProduct || '예정된 예약 없음', dark: false },
+        ] as const).map(card => (
+          <div key={card.key} style={{ ...s.statCard, ...(card.dark ? s.statCardDark : {}) }}>
+            <div style={s.statTop}>
+              <div style={{ ...s.statIconWrap, ...(card.dark ? { background: 'rgba(255,255,255,0.08)' } : {}) }}>
+                {STAT_ICONS[card.key](card.dark ? 'rgba(255,255,255,0.6)' : '#B11F39')}
+              </div>
+              <span style={{ ...s.statLabel, ...(card.dark ? { color: 'rgba(255,255,255,0.5)' } : {}) }}>{card.label}</span>
+            </div>
+            <div style={{ ...s.statValue, ...(card.dark ? { color: '#fff' } : {}), ...(card.key === 'next' ? { fontSize: 24 } : {}) }}>
+              {card.value}
+              {card.unit && <span style={{ ...s.statUnit, ...(card.dark ? { color: 'rgba(255,255,255,0.35)' } : {}) }}>{card.unit}</span>}
+            </div>
+            <div style={{ ...s.statSub, ...(card.dark ? { color: 'rgba(255,255,255,0.25)' } : {}) }}>{card.sub}</div>
+          </div>
+        ))}
       </div>
 
-      {/* 최근 예약 내역 테이블 */}
+      {/* 최근 예약 내역 */}
       <div style={s.tableCard}>
         <div style={s.tableHeader}>
           <span style={s.tableTitle}>최근 예약 내역</span>
-          <Link href="/reservations" style={s.moreLink}>전체 보기 →</Link>
+          <Link href="/reservations" style={s.moreLink}>
+            <span>전체 보기</span>
+            <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </Link>
         </div>
-        <table style={s.table}>
-          <thead>
-            <tr style={s.thead}>
-              <th style={s.th}>예약번호</th>
-              <th style={s.th}>제품명</th>
-              <th style={s.th}>품목</th>
-              <th style={s.th}>원두(kg)</th>
-              <th style={s.th}>생산일</th>
-              <th style={s.th}>배정 기기</th>
-              <th style={s.th}>상태</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reservations.slice(0, 5).map(r => {
-              const st = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
-              return (
-                <tr key={r.reservation_id} style={s.tr}>
-                  <td style={{ ...s.td, fontWeight: 600 }}>#{r.reservation_id}</td>
-                  <td style={s.td}>{r.products?.product_name || '-'}</td>
-                  <td style={{ ...s.td, color: '#666' }}>{r.products?.product_type === 'extract' ? '원액' : r.products?.product_type || '-'}</td>
-                  <td style={s.td}>{r.kg_amount}kg</td>
-                  <td style={s.td}>{new Date(r.scheduled_date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })}</td>
-                  <td style={{ ...s.td, color: '#666' }}>{r.equipment?.name || '-'}</td>
-                  <td style={s.td}>
-                    <span style={{ ...s.badge, background: st.bg, color: st.color }}>
-                      {STATUS_LABEL[r.status] || r.status}
-                    </span>
+        <div style={s.tableWrap}>
+          <table style={s.table}>
+            <thead>
+              <tr>
+                <th style={s.th}>예약번호</th>
+                <th style={s.th}>제품명</th>
+                <th style={s.th}>품목</th>
+                <th style={s.th}>원두(kg)</th>
+                <th style={s.th}>생산일</th>
+                <th style={s.th}>배정 기기</th>
+                <th style={{ ...s.th, textAlign: 'center' }}>상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reservations.slice(0, 5).map(r => {
+                const st = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
+                return (
+                  <tr key={r.reservation_id} style={s.tr}>
+                    <td style={s.tdId}>#{r.reservation_id}</td>
+                    <td style={s.td}>{r.products?.product_name || '-'}</td>
+                    <td style={s.tdMuted}>{r.products?.product_type === 'extract' ? '원액' : r.products?.product_type || '-'}</td>
+                    <td style={s.tdMono}>{r.kg_amount}kg</td>
+                    <td style={s.td}>{new Date(r.scheduled_date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })}</td>
+                    <td style={s.tdMuted}>{r.equipment?.name || '-'}</td>
+                    <td style={{ ...s.td, textAlign: 'center' }}>
+                      <span style={{ ...s.statusBadge, background: st.bg, color: st.color, borderColor: st.border }}>
+                        {STATUS_LABEL[r.status] || r.status}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {reservations.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={s.emptyRow}>
+                    <div style={s.emptyContent}>
+                      {Icons.clipboard({ size: 24, color: '#ddd' })}
+                      <span>예약 내역이 없습니다</span>
+                    </div>
                   </td>
                 </tr>
-              );
-            })}
-            {reservations.length === 0 && (
-              <tr><td colSpan={7} style={{ ...s.td, textAlign: 'center', color: '#999', padding: 32 }}>예약 내역이 없습니다.</td></tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </Layout>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  // 상단
-  dateRow: { marginBottom: 20 },
-  dateText: { fontSize: 13, color: '#888', background: '#F5F5F5', padding: '6px 14px', borderRadius: 6, display: 'inline-block' },
-  actionBtn: { padding: '8px 20px', background: '#B11F39', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  // ── 상단 바 ──
+  topBar: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    width: '100%',
+  },
+  topLeft: { display: 'flex', alignItems: 'center', gap: 14 },
+  pageTitle: { fontSize: 18, fontWeight: 700, color: '#0A0A0A', margin: 0, letterSpacing: -0.3 },
+  dateBadge: {
+    display: 'inline-flex', alignItems: 'center', gap: 5,
+    fontSize: 12, color: '#999', fontWeight: 500,
+    padding: '4px 10px', borderRadius: 20,
+    background: '#F5F5F5',
+  },
+  actionBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    padding: '9px 20px', background: '#B11F39', color: '#fff',
+    border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600,
+    cursor: 'pointer', letterSpacing: 0.1,
+    boxShadow: '0 1px 3px rgba(177,31,57,0.25), 0 1px 2px rgba(0,0,0,0.06)',
+  },
 
-  // 통계 카드
-  statsRow: { display: 'flex', gap: 16, marginBottom: 28 },
-  statCard: { flex: 1, background: '#fff', borderRadius: 10, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
-  statLabel: { fontSize: 13, color: '#888', marginBottom: 8 },
-  statValue: { fontSize: 36, fontWeight: 700, marginBottom: 8, fontFamily: "'Space Grotesk', sans-serif", color: '#0A0A0A' },
-  statSub: { fontSize: 11, color: '#999' },
+  // ── 통계 카드 ──
+  statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 },
+  statCard: {
+    background: '#fff', borderRadius: 12, padding: '20px 22px',
+    border: '1px solid #EEEEEE',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+    display: 'flex', flexDirection: 'column' as const,
+    minHeight: 140,
+  },
+  statCardDark: {
+    background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.06)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+  },
+  statTop: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 },
+  statIconWrap: {
+    width: 30, height: 30, borderRadius: 8,
+    background: '#FDF2F4',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  statLabel: { fontSize: 12, color: '#999', fontWeight: 500 },
+  statValue: {
+    fontSize: 32, fontWeight: 700, color: '#0A0A0A',
+    fontFamily: "'Space Grotesk', sans-serif",
+    letterSpacing: -0.5, lineHeight: 1, marginBottom: 8,
+    flex: 1, display: 'flex', alignItems: 'baseline',
+  },
+  statUnit: { fontSize: 14, fontWeight: 500, marginLeft: 3, color: '#CCCCCC' },
+  statSub: { fontSize: 11, color: '#CCCCCC', lineHeight: 1.3 },
 
-  // 테이블
-  tableCard: { background: '#fff', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' },
-  tableHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #f0f0f0' },
-  tableTitle: { fontSize: 15, fontWeight: 700, color: '#0A0A0A' },
-  moreLink: { fontSize: 12, color: '#B11F39', textDecoration: 'none' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  thead: { background: '#F9F9F9' },
-  th: { padding: '12px 24px', textAlign: 'left', fontSize: 12, color: '#888', fontWeight: 600, borderBottom: '1px solid #f0f0f0' },
-  tr: { borderBottom: '1px solid #f8f8f8' },
-  td: { padding: '14px 24px', fontSize: 13, color: '#0A0A0A' },
-  badge: { padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600, display: 'inline-block' },
+  // ── 테이블 ──
+  tableCard: {
+    background: '#fff', borderRadius: 12, overflow: 'hidden',
+    border: '1px solid #EEEEEE',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+  },
+  tableHeader: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '16px 24px', borderBottom: '1px solid #F0F0F0',
+  },
+  tableTitle: { fontSize: 14, fontWeight: 700, color: '#0A0A0A', letterSpacing: -0.2 },
+  moreLink: {
+    display: 'inline-flex', alignItems: 'center', gap: 3,
+    fontSize: 12, color: '#B11F39', textDecoration: 'none', fontWeight: 500,
+    padding: '5px 10px', borderRadius: 6,
+    border: '1px solid #F5D0D6', background: '#FDF8F9',
+  },
+  tableWrap: { overflowX: 'auto' },
+  table: { width: '100%', borderCollapse: 'collapse', minWidth: 700 },
+  th: {
+    padding: '11px 24px', textAlign: 'left' as const,
+    fontSize: 11, color: '#AAA', fontWeight: 600,
+    textTransform: 'uppercase' as const, letterSpacing: 0.5,
+    background: '#FAFAFA', borderBottom: '1px solid #F0F0F0',
+  },
+  tr: { borderBottom: '1px solid #F5F5F5' },
+  td: { padding: '14px 24px', fontSize: 13, color: '#333' },
+  tdId: { padding: '14px 24px', fontSize: 13, color: '#0A0A0A', fontWeight: 600, fontFamily: "'Space Grotesk', monospace" },
+  tdMuted: { padding: '14px 24px', fontSize: 13, color: '#999' },
+  tdMono: { padding: '14px 24px', fontSize: 13, color: '#333', fontFamily: "'Space Grotesk', monospace", fontWeight: 500 },
+  statusBadge: {
+    display: 'inline-block', padding: '4px 0',
+    width: 72, textAlign: 'center' as const,
+    borderRadius: 6, fontSize: 11, fontWeight: 600,
+    letterSpacing: 0.2, borderStyle: 'solid', borderWidth: 1,
+  },
+  emptyRow: { padding: '48px 24px', textAlign: 'center' as const },
+  emptyContent: {
+    display: 'inline-flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8,
+    color: '#ccc', fontSize: 13,
+  },
 };
