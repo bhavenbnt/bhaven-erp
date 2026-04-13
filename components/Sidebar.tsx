@@ -22,7 +22,6 @@ const ADMIN_NAV = [
   { path: '/admin/inquiries', label: '문의 관리' },
   { path: '/admin/equipment', label: '기기 관리' },
   { path: '/admin/calendar', label: '생산 캘린더' },
-  { path: '/admin/statistics', label: '통계' },
   { path: '/admin/holidays', label: '휴무일 관리' },
   { path: '/admin/employees', label: '직원 관리' },
   { path: '/admin/customers', label: '고객사 관리' },
