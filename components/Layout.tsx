@@ -19,7 +19,7 @@ export default function Layout({ title, action, children }: LayoutProps) {
           {title && <h1 style={styles.title}>{title}</h1>}
           {action && <div style={title ? undefined : { width: '100%' }}>{action}</div>}
         </header>
-        <div style={{ ...styles.content, padding: isMobile ? 16 : 28 }}>{children}</div>
+        <div style={{ ...styles.content, padding: isMobile ? 16 : '20px 28px' }}>{children}</div>
       </div>
     </div>
   );
@@ -34,5 +34,5 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid #EEEEEE',
   },
   title: { fontSize: 16, fontWeight: 700, color: '#0A0A0A', margin: 0, letterSpacing: -0.3 },
-  content: { flex: 1, padding: 28, overflow: 'auto' },
+  content: { flex: 1, padding: '20px 28px', overflow: 'auto', display: 'flex', flexDirection: 'column' },
 };

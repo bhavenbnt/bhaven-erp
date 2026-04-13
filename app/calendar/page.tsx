@@ -106,7 +106,8 @@ export default function CalendarPage() {
   for (let i = 1; i <= daysInMonth; i++) cells.push(i);
   const weeks: (number | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
-  while (weeks.length < 6) weeks.push(Array(7).fill(null));
+  // 마지막 줄이 전부 null이면 제거 (불필요한 빈 줄)
+  if (weeks.length > 0 && weeks[weeks.length - 1].every(d => d === null)) weeks.pop();
 
   const today = new Date();
   const isToday = (d: number | null) => d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
@@ -309,90 +310,91 @@ const st: Record<string, React.CSSProperties> = {
 
   // ── 용량 필터 ──
   filterCard: {
-    background: '#fff', borderRadius: 12, padding: '16px 20px',
+    background: '#fff', borderRadius: 10, padding: '10px 16px',
     border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  filterTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  filterLabel: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#555' },
+  filterTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  filterLabel: { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: '#555' },
   filterClear: {
     display: 'inline-flex', alignItems: 'center', gap: 4,
-    fontSize: 11, color: '#999', background: 'none', border: '1px solid #E8E8E8',
-    borderRadius: 5, padding: '3px 8px', cursor: 'pointer',
+    fontSize: 10, color: '#999', background: 'none', border: '1px solid #E8E8E8',
+    borderRadius: 4, padding: '2px 6px', cursor: 'pointer',
   },
-  filterRow: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-  presets: { display: 'flex', gap: 6 },
+  filterRow: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  presets: { display: 'flex', gap: 4 },
   presetBtn: {
-    padding: '7px 14px', fontSize: 13, fontWeight: 600, color: '#666',
-    background: '#F5F5F5', border: '1px solid #EEEEEE', borderRadius: 8,
+    padding: '5px 11px', fontSize: 11, fontWeight: 600, color: '#666',
+    background: '#F5F5F5', border: '1px solid #EEEEEE', borderRadius: 6,
     cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif",
     transition: 'all 0.15s',
   },
   presetActive: { background: '#0A0A0A', color: '#fff', border: '1px solid #0A0A0A' },
   customInput: {
-    display: 'flex', alignItems: 'center', gap: 0,
-    border: '1px solid #EEEEEE', borderRadius: 8, overflow: 'hidden',
+    display: 'flex', alignItems: 'center',
+    border: '1px solid #EEEEEE', borderRadius: 6, overflow: 'hidden',
     background: '#FAFAFA',
   },
   kgInput: {
-    width: 72, padding: '7px 10px', border: 'none', background: 'transparent',
-    fontSize: 13, fontFamily: "'Space Grotesk', sans-serif", outline: 'none',
+    width: 80, padding: '5px 8px', border: 'none', background: 'transparent',
+    fontSize: 11, fontFamily: "'Space Grotesk', sans-serif", outline: 'none',
     color: '#333',
   },
-  kgUnit: { fontSize: 12, color: '#AAA', fontWeight: 500, paddingRight: 4 },
+  kgUnit: { fontSize: 10, color: '#AAA', fontWeight: 500, paddingRight: 4 },
   kgApply: {
-    padding: '7px 12px', background: '#F0F0F0', border: 'none', borderLeft: '1px solid #EEEEEE',
-    fontSize: 12, fontWeight: 600, color: '#555', cursor: 'pointer',
+    padding: '5px 10px', background: '#F0F0F0', border: 'none', borderLeft: '1px solid #EEEEEE',
+    fontSize: 10, fontWeight: 600, color: '#555', cursor: 'pointer',
   },
   filterInfo: {
-    display: 'flex', alignItems: 'center', gap: 6,
-    marginTop: 10, fontSize: 11, color: '#B11F39', fontWeight: 500,
+    display: 'flex', alignItems: 'center', gap: 5,
+    marginTop: 6, fontSize: 10, color: '#B11F39', fontWeight: 500,
   },
-  filterInfoDot: { width: 6, height: 6, borderRadius: '50%', background: '#B11F39', flexShrink: 0 },
+  filterInfoDot: { width: 5, height: 5, borderRadius: '50%', background: '#B11F39', flexShrink: 0 },
 
   // ── 월 네비 ──
-  monthNav: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 },
-  monthNavLeft: { display: 'flex', alignItems: 'center', gap: 8 },
+  monthNav: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 },
+  monthNavLeft: { display: 'flex', alignItems: 'center', gap: 6 },
   navBtn: {
-    width: 32, height: 32, border: '1px solid #EEEEEE', background: '#fff', borderRadius: 8,
+    width: 28, height: 28, border: '1px solid #EEEEEE', background: '#fff', borderRadius: 6,
     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666',
   },
-  monthLabel: { fontSize: 16, fontWeight: 700, color: '#0A0A0A', minWidth: 100, textAlign: 'center', letterSpacing: -0.3 },
+  monthLabel: { fontSize: 15, fontWeight: 700, color: '#0A0A0A', minWidth: 90, textAlign: 'center', letterSpacing: -0.3 },
   todayBtn: {
-    padding: '5px 12px', fontSize: 12, fontWeight: 600, color: '#666',
-    background: '#F5F5F5', border: '1px solid #EEEEEE', borderRadius: 6, cursor: 'pointer', marginLeft: 4,
+    padding: '4px 10px', fontSize: 11, fontWeight: 600, color: '#666',
+    background: '#F5F5F5', border: '1px solid #EEEEEE', borderRadius: 5, cursor: 'pointer', marginLeft: 2,
   },
-  legend: { display: 'flex', gap: 14, flexWrap: 'wrap' },
-  legendItem: { display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#999', fontWeight: 500 },
-  legendDot: { width: 7, height: 7, borderRadius: '50%' },
+  legend: { display: 'flex', gap: 12, flexWrap: 'wrap' },
+  legendItem: { display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#999', fontWeight: 500 },
+  legendDot: { width: 6, height: 6, borderRadius: '50%' },
 
   // ── 캘린더 ──
   calendarCard: {
-    background: '#fff', borderRadius: 12, overflow: 'hidden',
+    background: '#fff', borderRadius: 10, overflow: 'hidden',
     border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+    flex: 1, display: 'flex', flexDirection: 'column',
   },
   dayHeader: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #F0F0F0' },
-  dayName: { padding: '12px 0', textAlign: 'center', fontSize: 12, fontWeight: 600, letterSpacing: 0.5, background: '#FAFAFA' },
-  week: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' },
-  cell: { minHeight: 130, padding: '10px 8px', display: 'flex', flexDirection: 'column' },
+  dayName: { padding: '7px 0', textAlign: 'center', fontSize: 10, fontWeight: 600, letterSpacing: 0.5, background: '#FAFAFA', textTransform: 'uppercase' },
+  week: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1 },
+  cell: { padding: '6px 6px', display: 'flex', flexDirection: 'column' },
 
-  dayTopRow: { display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8, flexWrap: 'wrap' },
-  dayNum: { fontSize: 13, fontWeight: 500, fontFamily: "'Space Grotesk', sans-serif" },
+  dayTopRow: { display: 'flex', alignItems: 'center', gap: 3, marginBottom: 4, flexWrap: 'wrap' },
+  dayNum: { fontSize: 12, fontWeight: 500, fontFamily: "'Space Grotesk', sans-serif" },
   todayNum: {
     color: '#fff', fontWeight: 700, background: '#B11F39', borderRadius: '50%',
-    width: 24, height: 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12,
+    width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
   },
-  holidayTag: { fontSize: 9, fontWeight: 600, color: '#999', background: '#F0F0F0', borderRadius: 4, padding: '1px 5px', border: '1px solid #E8E8E8' },
-  availTag: { fontSize: 9, fontWeight: 600, borderRadius: 4, padding: '2px 6px', marginLeft: 'auto' },
+  holidayTag: { fontSize: 8, fontWeight: 600, color: '#999', background: '#F0F0F0', borderRadius: 3, padding: '1px 4px', border: '1px solid #E8E8E8' },
+  availTag: { fontSize: 8, fontWeight: 600, borderRadius: 3, padding: '1px 5px', marginLeft: 'auto' },
 
-  reservList: { display: 'flex', flexDirection: 'column', gap: 4, flex: 1 },
+  reservList: { display: 'flex', flexDirection: 'column', gap: 2, flex: 1 },
   myReserv: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '4px 8px', borderRadius: 4, background: '#FAFAFA', borderLeft: '2px solid #CCC', fontSize: 10,
+    padding: '3px 6px', borderRadius: 3, background: '#FAFAFA', borderLeft: '2px solid #CCC', fontSize: 9,
   },
   myReservKg: { fontWeight: 600, color: '#333', fontFamily: "'Space Grotesk', sans-serif" },
-  myReservStatus: { fontWeight: 600, fontSize: 9 },
-  moreCount: { fontSize: 10, color: '#CCC', fontWeight: 500, paddingLeft: 4 },
+  myReservStatus: { fontWeight: 600, fontSize: 8 },
+  moreCount: { fontSize: 9, color: '#CCC', fontWeight: 500, paddingLeft: 3 },
 
   toast: {
     position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
