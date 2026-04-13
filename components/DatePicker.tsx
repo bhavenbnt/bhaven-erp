@@ -8,9 +8,10 @@ interface DatePickerProps {
   onChange: (date: string) => void;
   minDate: string;
   maxDate: string;
+  align?: 'left' | 'right';
 }
 
-export default function DatePicker({ value, onChange, minDate, maxDate }: DatePickerProps) {
+export default function DatePicker({ value, onChange, minDate, maxDate, align = 'left' }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => {
     if (value) return new Date(value + 'T00:00:00');
@@ -77,7 +78,7 @@ export default function DatePicker({ value, onChange, minDate, maxDate }: DatePi
       </button>
 
       {open && (
-        <div style={s.dropdown}>
+        <div style={{ ...s.dropdown, ...(align === 'right' ? { left: 'auto', right: 0 } : {}) }}>
           {/* 헤더 */}
           <div style={s.header}>
             <button style={{ ...s.navBtn, opacity: canPrev ? 1 : 0.2 }} disabled={!canPrev}

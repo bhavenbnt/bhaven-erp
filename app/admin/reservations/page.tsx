@@ -1,10 +1,11 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { Icons } from '@/components/icons';
+import DatePicker from '@/components/DatePicker';
 
 const TABS = [
   { key: 'all', label: '전체' },
@@ -28,12 +29,16 @@ const STATUS_STYLE: Record<string, { color: string; bg: string; border: string }
 
 const PAGE_SIZE = 10;
 
-export default function AdminReservations() {
+function AdminReservationsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const dateParam = searchParams.get('date') || '';
   const { user } = useAuth();
   const [reservations, setReservations] = useState<any[]>([]);
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState(dateParam);
+  const [dateTo, setDateTo] = useState(dateParam);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -49,6 +54,8 @@ export default function AdminReservations() {
 
   const filtered = reservations.filter((r: any) => {
     if (tab !== 'all' && r.status !== tab) return false;
+    if (dateFrom && r.scheduled_date < dateFrom) return false;
+    if (dateTo && r.scheduled_date > dateTo) return false;
     if (search) {
       const q = search.toLowerCase();
       if (!(r.users?.company_name || '').toLowerCase().includes(q)
@@ -81,19 +88,31 @@ export default function AdminReservations() {
         </div>
       }
     >
-      {/* 필터 탭 */}
-      <div style={s.tabRow}>
-        {TABS.map(t => {
-          const count = getCount(t.key);
-          const active = tab === t.key;
-          return (
-            <button key={t.key} onClick={() => handleTab(t.key)}
-              style={{ ...s.tab, ...(active ? s.tabActive : {}) }}>
-              <span>{t.label}</span>
-              {count > 0 && <span style={{ ...s.tabCount, ...(active ? s.tabCountActive : {}) }}>{count}</span>}
+      {/* 필터: 탭 + 날짜 */}
+      <div style={s.filterBar}>
+        <div style={s.tabRow}>
+          {TABS.map(t => {
+            const count = getCount(t.key);
+            const active = tab === t.key;
+            return (
+              <button key={t.key} onClick={() => handleTab(t.key)}
+                style={{ ...s.tab, ...(active ? s.tabActive : {}) }}>
+                <span>{t.label}</span>
+                {count > 0 && <span style={{ ...s.tabCount, ...(active ? s.tabCountActive : {}) }}>{count}</span>}
+              </button>
+            );
+          })}
+        </div>
+        <div style={s.dateFilterWrap}>
+          <DatePicker value={dateFrom} onChange={(d) => { setDateFrom(d); setPage(1); }} minDate="2026-01-01" maxDate="2027-12-31" />
+          <span style={s.dateSep}>~</span>
+          <DatePicker value={dateTo} onChange={(d) => { setDateTo(d); setPage(1); }} minDate="2026-01-01" maxDate="2027-12-31" align="right" />
+          {(dateFrom || dateTo) && (
+            <button style={s.dateFilterClear} onClick={() => { setDateFrom(''); setDateTo(''); setPage(1); router.replace('/admin/reservations'); }}>
+              <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M18 6L6 18M6 6l12 12" /></svg>
             </button>
-          );
-        })}
+          )}
+        </div>
       </div>
 
       {/* 테이블 */}
@@ -173,6 +192,10 @@ export default function AdminReservations() {
   );
 }
 
+export default function AdminReservations() {
+  return <Suspense fallback={<div style={{ minHeight: '100vh', background: '#F5F5F5' }} />}><AdminReservationsContent /></Suspense>;
+}
+
 const s: Record<string, React.CSSProperties> = {
   // ── 상단 ──
   topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 16 },
@@ -189,8 +212,9 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13, color: '#0A0A0A', flex: 1,
   },
 
-  // ── 탭 ──
-  tabRow: { display: 'flex', gap: 4, marginBottom: 10, background: '#fff', borderRadius: 10, padding: 4, border: '1px solid #EEEEEE' },
+  // ── 필터 바 ──
+  filterBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 },
+  tabRow: { display: 'flex', gap: 4, background: '#fff', borderRadius: 10, padding: 4, border: '1px solid #EEEEEE' },
   tab: {
     display: 'flex', alignItems: 'center', gap: 6,
     padding: '7px 16px', border: 'none', background: 'transparent',
@@ -255,4 +279,13 @@ const s: Record<string, React.CSSProperties> = {
   },
   pageNumActive: { background: '#0A0A0A', color: '#fff', fontWeight: 700 },
   pageInfo: { fontSize: 11, color: '#CCC', marginLeft: 12 },
+
+  // ── 날짜 필터 ──
+  dateFilterWrap: { display: 'flex', alignItems: 'center', gap: 6 },
+  dateSep: { fontSize: 12, color: '#CCC', fontWeight: 500 },
+  dateFilterClear: {
+    width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: '#F0F0F0', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#999',
+    marginLeft: 2,
+  },
 };
