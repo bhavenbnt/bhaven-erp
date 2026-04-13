@@ -94,13 +94,13 @@ export default function Sidebar() {
 
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
-  const openNoti = async () => {
-    setShowNoti(v => !v);
-    if (unread > 0) {
-      await api.put('/notifications/read', {}).catch(() => {});
-      setUnread(0);
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-    }
+  const openNoti = () => setShowNoti(v => !v);
+
+  const markAllRead = async () => {
+    if (unread === 0) return;
+    await api.put('/notifications/read', {}).catch(() => {});
+    setUnread(0);
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
   };
 
   const renderNav = () => (
@@ -122,23 +122,59 @@ export default function Sidebar() {
     </nav>
   );
 
+  const NOTI_TYPE_ICON: Record<string, { icon: keyof typeof Icons; label: string }> = {
+    approval: { icon: 'clipboard', label: '승인' },
+    reservation: { icon: 'calendar', label: '예약' },
+    cancellation: { icon: 'clipboard', label: '반려' },
+    schedule: { icon: 'calendar', label: '일정' },
+    info: { icon: 'bell', label: '안내' },
+  };
+
   const renderNotiDropdown = () => (
     showNoti && (
       <div style={styles.notiDropdown}>
-        <div style={styles.notiHeader}>알림 {notifications.length > 0 ? `(${notifications.length})` : ''}</div>
+        <div style={styles.notiHeader}>
+          <div style={styles.notiHeaderLeft}>
+            <span style={styles.notiHeaderTitle}>알림</span>
+            {unread > 0 && <span style={styles.notiUnreadBadge}>{unread}</span>}
+          </div>
+          {unread > 0 && (
+            <button style={styles.notiMarkRead} onClick={markAllRead}>모두 읽음</button>
+          )}
+        </div>
         {notifications.length === 0 ? (
-          <div style={styles.notiEmpty}>새 알림이 없습니다.</div>
+          <div style={styles.notiEmpty}>
+            {Icons.bell({ size: 20, color: '#DDD' })}
+            <span>새 알림이 없습니다</span>
+          </div>
         ) : (
-          notifications.slice(0, 10).map((n: any) => (
-            <div key={n.notification_id} style={{
-              ...styles.notiItem,
-              background: n.is_read ? 'transparent' : 'rgba(177,31,57,0.06)',
-            }}>
-              <span style={styles.notiTitle}>{n.title || n.type}</span>
-              <p style={styles.notiMsg}>{n.message}</p>
-              <span style={styles.notiTime}>{new Date(n.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-          ))
+          <div style={styles.notiList}>
+            {notifications.slice(0, 10).map((n: any) => {
+              const typeInfo = NOTI_TYPE_ICON[n.noti_type] || NOTI_TYPE_ICON.info;
+              return (
+                <div key={n.notification_id} style={{
+                  ...styles.notiItem,
+                  background: n.is_read ? '#fff' : '#FDF8F9',
+                }}>
+                  <div style={styles.notiItemTop}>
+                    <div style={styles.notiIconWrap}>
+                      {Icons[typeInfo.icon]({ size: 13, color: n.is_read ? '#CCC' : '#B11F39' })}
+                    </div>
+                    <div style={styles.notiItemContent}>
+                      <div style={styles.notiItemTitleRow}>
+                        <span style={{ ...styles.notiTitle, color: n.is_read ? '#999' : '#0A0A0A' }}>{n.title}</span>
+                        {!n.is_read && <span style={styles.notiDot} />}
+                      </div>
+                      <p style={{ ...styles.notiMsg, color: n.is_read ? '#BBB' : '#666' }}>{n.message}</p>
+                      <span style={styles.notiTime}>
+                        {new Date(n.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     )
@@ -231,14 +267,52 @@ const styles: Record<string, React.CSSProperties> = {
   logoTitle: { color: '#f7f8f8', fontSize: 14, fontWeight: 700, letterSpacing: 1.5 },
   logoSub: { color: 'rgba(255,255,255,0.3)', fontSize: 10, marginTop: 2 },
   bellBtn: { background: 'none', border: 'none', cursor: 'pointer', position: 'relative', padding: '4px', lineHeight: 0, borderRadius: 4 },
-  badge: { position: 'absolute', top: -4, right: -6, background: '#B11F39', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 10, padding: '1px 4px', minWidth: 14, textAlign: 'center' },
-  notiDropdown: { position: 'absolute', top: '100%', right: 0, width: 280, background: '#fff', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', zIndex: 1000, maxHeight: 360, overflowY: 'auto' },
-  notiHeader: { padding: '12px 14px 8px', fontSize: 12, fontWeight: 600, color: '#374151', borderBottom: '1px solid #F3F4F6' },
-  notiEmpty: { padding: '24px 14px', textAlign: 'center', fontSize: 12, color: '#9CA3AF' },
-  notiItem: { padding: '10px 14px', borderBottom: '1px solid #F9FAFB', cursor: 'default' },
-  notiTitle: { fontSize: 12, fontWeight: 600, color: '#111' },
-  notiMsg: { fontSize: 11, color: '#6B7280', margin: '4px 0 2px', lineHeight: 1.5 },
-  notiTime: { fontSize: 10, color: '#9CA3AF' },
+  badge: {
+    position: 'absolute', top: -2, right: -4,
+    background: '#B11F39', color: '#fff',
+    fontSize: 8, fontWeight: 700, borderRadius: 8,
+    width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    border: '2px solid #0A0A0A',
+  },
+  notiDropdown: {
+    position: 'absolute', top: '100%', left: 0, width: 340,
+    background: '#fff', borderRadius: 12, border: '1px solid #EEEEEE',
+    boxShadow: '0 12px 40px rgba(0,0,0,0.15)', zIndex: 1000,
+    maxHeight: 420, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+  },
+  notiHeader: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '14px 18px', borderBottom: '1px solid #F0F0F0',
+  },
+  notiHeaderLeft: { display: 'flex', alignItems: 'center', gap: 8 },
+  notiHeaderTitle: { fontSize: 13, fontWeight: 700, color: '#0A0A0A' },
+  notiUnreadBadge: {
+    fontSize: 10, fontWeight: 700, color: '#B11F39', background: '#FDF2F4',
+    borderRadius: 10, padding: '2px 7px',
+    border: '1px solid #F5D0D6',
+  },
+  notiMarkRead: {
+    fontSize: 11, fontWeight: 500, color: '#999', background: 'none',
+    border: 'none', cursor: 'pointer', padding: '2px 0',
+  },
+  notiList: { overflowY: 'auto', maxHeight: 360 },
+  notiEmpty: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+    padding: '32px 18px', textAlign: 'center', fontSize: 12, color: '#CCC',
+  },
+  notiItem: { padding: '14px 18px', borderBottom: '1px solid #F5F5F5', cursor: 'default' },
+  notiItemTop: { display: 'flex', gap: 10 },
+  notiIconWrap: {
+    width: 28, height: 28, borderRadius: 8, background: '#FAFAFA',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, marginTop: 1,
+  },
+  notiItemContent: { flex: 1, minWidth: 0 },
+  notiItemTitleRow: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 },
+  notiTitle: { fontSize: 12, fontWeight: 600 },
+  notiDot: { width: 6, height: 6, borderRadius: '50%', background: '#B11F39', flexShrink: 0 },
+  notiMsg: { fontSize: 11, margin: '0 0 4px', lineHeight: 1.5 },
+  notiTime: { fontSize: 10, color: '#CCC' },
   nav: { flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 2 },
   navItem: {
     display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px',
