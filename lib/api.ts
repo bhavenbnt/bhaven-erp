@@ -12,7 +12,16 @@ async function request(method: string, path: string, body?: unknown) {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   const data = await res.json();
-  if (!res.ok) throw { response: { data, status: res.status } };
+  if (!res.ok) {
+    // 토큰 만료 시 자동 로그아웃
+    if (res.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+      return { data };
+    }
+    throw { response: { data, status: res.status } };
+  }
   return { data };
 }
 
