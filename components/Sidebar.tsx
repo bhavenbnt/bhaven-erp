@@ -41,6 +41,7 @@ const SUPER_ADMIN_NAV = [
 const WORKER_NAV = [
   { path: '/worker', label: '대시보드' },
   { path: '/worker/production', label: '생산 이력' },
+  { path: '/worker/shipment', label: '출고 관리' },
 ];
 
 function NavIcon({ label, active }: { label: string; active: boolean }) {

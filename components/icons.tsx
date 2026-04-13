@@ -45,4 +45,5 @@ export const NAV_ICONS: Record<string, keyof typeof Icons> = {
   '직원 관리': 'users',
   '고객사 관리': 'building',
   '생산 이력': 'factory',
+  '출고 관리': 'clipboard',
 };
