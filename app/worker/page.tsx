@@ -15,6 +15,7 @@ const STATUS_STYLE: Record<string, { color: string; bg: string; border: string }
   CANCELLED:   { color: '#AAA', bg: '#FAFAFA', border: '#F0F0F0' },
 };
 const DAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
+const PAGE_SIZE = 8;
 
 export default function WorkerDashboard() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function WorkerDashboard() {
   const [todayList, setTodayList] = useState<any[]>([]);
   const [tomorrowCount, setTomorrowCount] = useState(0);
   const [weekData, setWeekData] = useState<{ date: Date; count: number; kg: number }[]>([]);
+  const [page, setPage] = useState(1);
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
@@ -70,6 +72,8 @@ export default function WorkerDashboard() {
   const inProgress = todayList.filter(r => r.status === 'IN_PROGRESS').length;
   const completed = todayList.filter(r => r.status === 'COMPLETED').length;
   const totalKg = todayList.reduce((sum, r) => sum + (r.kg_amount || 0), 0);
+  const totalPages = Math.max(1, Math.ceil(todayList.length / PAGE_SIZE));
+  const paginated = todayList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const dateStr = today.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   const maxWeekKg = Math.max(...weekData.map(d => d.kg), 1);
 
@@ -138,12 +142,12 @@ export default function WorkerDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {todayList.length === 0 && (
+                {paginated.length === 0 && (
                   <tr><td colSpan={7} style={s.emptyRow}>
                     <div style={s.emptyContent}>{Icons.factory({ size: 24, color: '#DDD' })}<span>오늘 예정된 작업이 없습니다</span></div>
                   </td></tr>
                 )}
-                {todayList.map((r: any) => {
+                {paginated.map((r: any) => {
                   const ss = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
                   return (
                     <tr key={r.reservation_id} style={s.tr}>
@@ -157,9 +161,9 @@ export default function WorkerDashboard() {
                       </td>
                       <td style={{ ...s.td, textAlign: 'center' }}>
                         <div style={s.actionBtns}>
-                          {r.status === 'CONFIRMED' && <button style={s.startBtn} onClick={() => handleStatus(r.reservation_id, 'IN_PROGRESS')}>생산 시작</button>}
-                          {r.status === 'IN_PROGRESS' && <button style={s.completeBtn} onClick={() => handleStatus(r.reservation_id, 'COMPLETED')}>완료</button>}
-                          {(r.status === 'IN_PROGRESS' || r.status === 'COMPLETED') && <button style={s.shipBtn} onClick={() => router.push(`/worker/shipment/${r.reservation_id}`)}>출고</button>}
+                          {r.status === 'CONFIRMED' && <span style={{ fontSize: 11, color: '#999' }}>생산 대기</span>}
+                          {r.status === 'IN_PROGRESS' && <button style={s.shipBtn} onClick={() => router.push(`/worker/shipment/${r.reservation_id}`)}>출고 처리</button>}
+                          {r.status === 'COMPLETED' && <span style={{ fontSize: 11, color: '#BBB' }}>처리 완료</span>}
                         </div>
                       </td>
                     </tr>
@@ -167,6 +171,18 @@ export default function WorkerDashboard() {
                 })}
               </tbody>
             </table>
+          </div>
+          <div style={s.pagination}>
+            <button style={{ ...s.pageBtn, opacity: page > 1 ? 1 : 0.3 }} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              <button key={p} style={{ ...s.pageNum, ...(p === page ? s.pageNumActive : {}) }} onClick={() => setPage(p)}>{p}</button>
+            ))}
+            <button style={{ ...s.pageBtn, opacity: page < totalPages ? 1 : 0.3 }} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 18l6-6-6-6" /></svg>
+            </button>
+            {todayList.length > 0 && <span style={s.pageInfo}>{todayList.length}건 중 {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, todayList.length)}</span>}
           </div>
         </div>
 
@@ -224,7 +240,7 @@ const s: Record<string, React.CSSProperties> = {
   bottomRow: { display: 'grid', gridTemplateColumns: '1fr 220px', gap: 16, alignItems: 'start' },
 
   // 테이블
-  tableCard: { background: '#fff', borderRadius: 12, overflow: 'hidden', border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' },
+  tableCard: { background: '#fff', borderRadius: 12, overflow: 'hidden', border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 340px)' },
   tableHeader: { display: 'flex', alignItems: 'center', gap: 8, padding: '16px 20px', borderBottom: '1px solid #F0F0F0' },
   tableTitle: { fontSize: 14, fontWeight: 700, color: '#0A0A0A', letterSpacing: -0.2 },
   countBadge: { fontSize: 10, fontWeight: 700, color: '#B11F39', background: '#FDF2F4', borderRadius: 10, padding: '2px 7px', border: '1px solid #F5D0D6' },
@@ -243,6 +259,12 @@ const s: Record<string, React.CSSProperties> = {
   startBtn: { padding: '5px 12px', background: '#0A0A0A', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' },
   completeBtn: { padding: '5px 12px', background: '#0A0A0A', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' },
   shipBtn: { padding: '5px 12px', background: '#fff', color: '#B11F39', border: '1px solid #F5D0D6', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' },
+
+  pagination: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '14px 20px', borderTop: '1px solid #F0F0F0', marginTop: 'auto' },
+  pageBtn: { width: 32, height: 32, border: '1px solid #EEEEEE', background: '#fff', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' },
+  pageNum: { width: 32, height: 32, border: 'none', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  pageNumActive: { background: '#0A0A0A', color: '#fff', fontWeight: 700 },
+  pageInfo: { fontSize: 11, color: '#CCC', marginLeft: 12 },
 
   // 이번 주
   weekCard: {
