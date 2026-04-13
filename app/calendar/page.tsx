@@ -5,46 +5,56 @@ import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
+import { Icons } from '@/components/icons';
 import useIsMobile from '@/hooks/useIsMobile';
 
-const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-const STATUS_COLOR: Record<string, string> = { PENDING: '#f59e0b', CONFIRMED: '#3b82f6', IN_PROGRESS: '#10b981', COMPLETED: '#6b7280', CANCELLED: '#ef4444' };
-const STATUS_LABEL: Record<string, string> = { PENDING: '대기', CONFIRMED: '예약완료', IN_PROGRESS: '생산중', COMPLETED: '생산완료', CANCELLED: '취소' };
+const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const PRESETS = [5, 10, 20, 30, 50];
 
-interface EquipmentSlot {
-  equipment_id: number;
-  name: string;
-  available_capacity: number;
-  max_capacity: number;
+const STATUS_STYLE: Record<string, { color: string }> = {
+  PENDING: { color: '#B11F39' }, IN_PROGRESS: { color: '#0A0A0A' },
+  CONFIRMED: { color: '#555' }, COMPLETED: { color: '#888' }, CANCELLED: { color: '#AAA' },
+};
+const STATUS_LABEL: Record<string, string> = {
+  PENDING: '대기', CONFIRMED: '확정', IN_PROGRESS: '생산중', COMPLETED: '완료', CANCELLED: '취소',
+};
+
+interface EquipmentSlot { equipment_id: number; name: string; type: string; available_capacity: number; max_capacity: number; }
+interface Holiday { holiday_date: string; reason: string; }
+
+// 필터링된 가용 상태 계산
+function getAvailability(slots: EquipmentSlot[], filterKg: number | null) {
+  if (slots.length === 0) return { count: 0, level: 'none' as const, label: '' };
+
+  const available = filterKg
+    ? slots.filter(s => s.available_capacity >= filterKg)
+    : slots.filter(s => s.available_capacity > 0);
+
+  if (available.length === 0) return { count: 0, level: 'none' as const, label: filterKg ? '불가' : '마감' };
+  if (available.length <= 2) return { count: available.length, level: 'limited' as const, label: `${available.length}대 가능` };
+  return { count: available.length, level: 'available' as const, label: `${available.length}대 가능` };
 }
 
-interface Holiday {
-  holiday_date: string;
-  reason: string;
-}
-
-interface DayModalState {
-  day: number;
-  dateStr: string;
-  slots: EquipmentSlot[];
-  anchorRect: DOMRect;
-}
+const AVAIL_COLOR: Record<string, { color: string; bg: string; border: string }> = {
+  available: { color: '#0A0A0A', bg: '#F0F0F0', border: '#E0E0E0' },
+  limited:   { color: '#B11F39', bg: '#FDF2F4', border: '#F5D0D6' },
+  none:      { color: '#CCC', bg: '#FAFAFA', border: '#F0F0F0' },
+};
 
 export default function CalendarPage() {
   const [current, setCurrent] = useState(new Date());
   const [reservations, setReservations] = useState<any[]>([]);
   const [slotsByDate, setSlotsByDate] = useState<Record<string, EquipmentSlot[]>>({});
   const [holidays, setHolidays] = useState<Record<string, Holiday>>({});
-  const [modal, setModal] = useState<DayModalState | null>(null);
+  const [filterKg, setFilterKg] = useState<number | null>(null);
+  const [customKg, setCustomKg] = useState('');
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
   const { user } = useAuth();
   const isMobile = useIsMobile();
 
-  useEffect(() => {
-    if (!user) router.replace('/login');
-  }, [user, router]);
+  useEffect(() => { if (!user) router.replace('/login'); }, [user, router]);
 
   const year = current.getFullYear();
   const month = current.getMonth();
@@ -67,33 +77,14 @@ export default function CalendarPage() {
       Promise.all(slotRequests),
     ]).then(([resvRes, holidayRes, slotResults]) => {
       setReservations(resvRes.data.data || []);
-
       const hMap: Record<string, Holiday> = {};
-      for (const h of (holidayRes.data.data || []) as Holiday[]) {
-        hMap[h.holiday_date] = h;
-      }
+      for (const h of (holidayRes.data.data || []) as Holiday[]) hMap[h.holiday_date] = h;
       setHolidays(hMap);
-
       const sMap: Record<string, EquipmentSlot[]> = {};
-      for (const { date, slots } of slotResults) {
-        sMap[date] = slots;
-      }
+      for (const { date, slots } of slotResults) sMap[date] = slots;
       setSlotsByDate(sMap);
     }).catch(() => {});
   }, [year, month]);
-
-  // Close modal on outside click
-  useEffect(() => {
-    if (!modal) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Element;
-      if (!target.closest('[data-modal="day-slots"]') && !target.closest('[data-day-cell]')) {
-        setModal(null);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [modal]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -113,130 +104,184 @@ export default function CalendarPage() {
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let i = 1; i <= daysInMonth; i++) cells.push(i);
-
   const weeks: (number | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  while (weeks.length < 6) weeks.push(Array(7).fill(null));
 
   const today = new Date();
   const isToday = (d: number | null) => d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
-
-  // 기획서 2.1: 상시 "이번달 + 다음달" 2개월치 오픈
-  const maxMonth = today.getMonth() + 1; // 다음달 (0-based: +1)
+  const maxMonth = today.getMonth() + 1;
   const maxYear = today.getFullYear() + (maxMonth > 11 ? 1 : 0);
   const normalizedMaxMonth = maxMonth % 12;
   const canGoNext = year < maxYear || (year === maxYear && month < normalizedMaxMonth);
 
-  const handleDayClick = (day: number, e: React.MouseEvent<HTMLDivElement>) => {
+  const handlePreset = (kg: number) => {
+    if (filterKg === kg) { setFilterKg(null); setCustomKg(''); }
+    else { setFilterKg(kg); setCustomKg(''); }
+  };
+  const handleCustomKg = () => {
+    const v = parseInt(customKg);
+    if (v > 0) setFilterKg(v);
+  };
+  const clearFilter = () => { setFilterKg(null); setCustomKg(''); };
+
+  const handleDayClick = (day: number) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-    // If holiday, show toast and stop
-    if (holidays[dateStr]) {
-      const reason = holidays[dateStr].reason;
-      showToast(`휴무일입니다${reason ? `: ${reason}` : ''}`);
-      return;
-    }
-
+    if (holidays[dateStr]) { showToast(`휴무일입니다${holidays[dateStr].reason ? ` — ${holidays[dateStr].reason}` : ''}`); return; }
     const isPast = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (isPast) return;
-
     const slots = slotsByDate[dateStr] || [];
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setModal({ day, dateStr, slots, anchorRect: rect });
+    const avail = getAvailability(slots, filterKg);
+    if (avail.level === 'none') {
+      showToast(filterKg ? `${filterKg}kg를 처리할 수 있는 기기가 없습니다` : '해당 날짜는 모든 기기가 마감되었습니다');
+      return;
+    }
+    const query = filterKg ? `?date=${dateStr}&kg=${filterKg}` : `?date=${dateStr}`;
+    router.push(`/reservation/new${query}`);
   };
-
-  const handleReserve = () => {
-    if (!modal) return;
-    setModal(null);
-    router.push(`/reservation/new?date=${modal.dateStr}`);
-  };
-
-  const action = (
-    <button onClick={() => router.push('/reservation/new')} style={styles.actionBtn}>+ 예약 신청</button>
-  );
 
   return (
-    <Layout title="예약 캘린더" action={action}>
-      {/* 헤더 */}
-      <div style={styles.calHeader}>
-        <button style={styles.navBtn} onClick={() => setCurrent(new Date(year, month - 1))}>{'<'}</button>
-        <span style={styles.monthLabel}>{year}년 {month + 1}월</span>
-        <button style={{ ...styles.navBtn, opacity: canGoNext ? 1 : 0.3, pointerEvents: canGoNext ? 'auto' : 'none' }}
-          onClick={() => canGoNext && setCurrent(new Date(year, month + 1))}>{'>'}</button>
-        <div style={styles.legend}>
-          {Object.entries(STATUS_LABEL).map(([k, v]) => (
-            <span key={k} style={styles.legendItem}>
-              <span style={{ ...styles.legendDot, background: STATUS_COLOR[k] }} />{v}
-            </span>
-          ))}
-          <span style={styles.legendItem}>
-            <span style={{ ...styles.legendDot, background: '#9CA3AF' }} />휴무
-          </span>
+    <Layout
+      title=""
+      action={
+        <div style={st.topBar}>
+          <h1 style={st.pageTitle}>예약 캘린더</h1>
+          <button onClick={() => router.push('/reservation/new')} style={st.actionBtn}>
+            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+            <span>예약 신청</span>
+          </button>
+        </div>
+      }
+    >
+      {/* 용량 필터 */}
+      <div style={st.filterCard}>
+        <div style={st.filterTop}>
+          <div style={st.filterLabel}>
+            {Icons.settings({ size: 14, color: '#999' })}
+            <span>생산할 용량을 선택하세요</span>
+          </div>
+          {filterKg && (
+            <button style={st.filterClear} onClick={clearFilter}>
+              <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M18 6L6 18M6 6l12 12" /></svg>
+              필터 해제
+            </button>
+          )}
+        </div>
+        <div style={st.filterRow}>
+          <div style={st.presets}>
+            {PRESETS.map(kg => (
+              <button
+                key={kg}
+                style={{ ...st.presetBtn, ...(filterKg === kg ? st.presetActive : {}) }}
+                onClick={() => handlePreset(kg)}
+              >
+                {kg}kg
+              </button>
+            ))}
+          </div>
+          <div style={st.customInput}>
+            <input
+              type="number"
+              placeholder="직접 입력"
+              value={customKg}
+              onChange={e => setCustomKg(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCustomKg()}
+              style={st.kgInput}
+            />
+            <span style={st.kgUnit}>kg</span>
+            <button style={st.kgApply} onClick={handleCustomKg}>적용</button>
+          </div>
+        </div>
+        {filterKg && (
+          <div style={st.filterInfo}>
+            <span style={st.filterInfoDot} />
+            <span>{filterKg}kg 이상 처리 가능한 기기만 표시 중</span>
+          </div>
+        )}
+      </div>
+
+      {/* 월 네비게이션 */}
+      <div style={st.monthNav}>
+        <div style={st.monthNavLeft}>
+          <button style={st.navBtn} onClick={() => setCurrent(new Date(year, month - 1))}>
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
+          <span style={st.monthLabel}>{year}년 {month + 1}월</span>
+          <button
+            style={{ ...st.navBtn, opacity: canGoNext ? 1 : 0.25, pointerEvents: canGoNext ? 'auto' : 'none' }}
+            onClick={() => canGoNext && setCurrent(new Date(year, month + 1))}
+          >
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+          <button style={st.todayBtn} onClick={() => setCurrent(new Date())}>오늘</button>
+        </div>
+        <div style={st.legend}>
+          <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#0A0A0A' }} />가능</span>
+          <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#B11F39' }} />잔여 적음</span>
+          <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#DDD' }} />불가</span>
         </div>
       </div>
 
-      {/* 달력 */}
-      <div style={styles.calendar}>
-        <div style={styles.dayHeader}>
+      {/* 캘린더 */}
+      <div style={st.calendarCard}>
+        <div style={st.dayHeader}>
           {DAYS.map((d, i) => (
-            <div key={d} style={{ ...styles.dayName, color: i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : '#aaa' }}>{d}</div>
+            <div key={d} style={{ ...st.dayName, color: i === 0 ? '#B11F39' : i === 6 ? '#666' : '#999' }}>{d}</div>
           ))}
         </div>
-
         {weeks.map((week, wi) => (
-          <div key={wi} style={styles.week}>
+          <div key={wi} style={st.week}>
             {Array(7).fill(null).map((_, di) => {
-              const day = week[di];
+              const day = week[di] ?? null;
               const dayReservs = day ? getDayReservations(day) : [];
               const isPast = day !== null && new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
               const dateStr = day ? `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
               const isHoliday = dateStr ? !!holidays[dateStr] : false;
-
-              let cellBg = isToday(day) ? '#fff5f5' : '#fff';
-              if (isHoliday) cellBg = '#F3F4F6';
-
-              const isClickable = day !== null && !isPast;
+              const slots = dateStr ? slotsByDate[dateStr] || [] : [];
+              const avail = day && !isPast && !isHoliday ? getAvailability(slots, filterKg) : null;
+              const ac = avail ? AVAIL_COLOR[avail.level] : null;
+              const isClickable = day !== null && !isPast && !isHoliday && avail?.level !== 'none';
 
               return (
                 <div
                   key={di}
-                  data-day-cell
                   style={{
-                    ...styles.cell,
-                    minHeight: isMobile ? 60 : 90,
-                    background: cellBg,
+                    ...st.cell,
+                    background: isHoliday ? '#FAFAFA' : isToday(day) ? '#FDF8F9' : '#fff',
                     cursor: isClickable ? 'pointer' : 'default',
-                    opacity: isPast ? 0.5 : 1,
+                    opacity: day === null ? 0.15 : isPast ? 0.3 : (avail?.level === 'none' && !isHoliday ? 0.5 : 1),
+                    borderRight: di < 6 ? '1px solid #F0F0F0' : 'none',
+                    borderBottom: wi < weeks.length - 1 ? '1px solid #F0F0F0' : 'none',
                   }}
-                  onClick={(e) => day !== null && !isPast && handleDayClick(day, e)}
+                  onClick={() => isClickable && handleDayClick(day!)}
                 >
-                  {day && (
+                  {day !== null && (
                     <>
-                      <div style={{
-                        ...styles.dayNum,
-                        color: di === 0 ? '#ef4444' : di === 6 ? '#3b82f6' : '#333',
-                        ...(isToday(day) ? styles.todayNum : {}),
-                      }}>
-                        {day}
-                        {isToday(day) && <span style={styles.todayDot} />}
-                        {isHoliday && (
-                          <span style={styles.holidayBadge}>휴무</span>
+                      <div style={st.dayTopRow}>
+                        <span style={{
+                          ...st.dayNum,
+                          color: di === 0 ? '#B11F39' : di === 6 ? '#666' : '#333',
+                          ...(isToday(day) ? st.todayNum : {}),
+                        }}>{day}</span>
+                        {isHoliday && <span style={st.holidayTag}>휴무</span>}
+                        {avail && !isHoliday && avail.label && (
+                          <span style={{ ...st.availTag, color: ac!.color, background: ac!.bg, border: `1px solid ${ac!.border}` }}>
+                            {avail.label}
+                          </span>
                         )}
                       </div>
-                      <div style={styles.reservList}>
-                        {dayReservs.slice(0, isMobile ? 1 : 3).map((r: any) => (
-                          <div key={r.reservation_id} style={{ ...styles.reservBadge, background: STATUS_COLOR[r.status] + '20', color: STATUS_COLOR[r.status], borderLeft: `2px solid ${STATUS_COLOR[r.status]}` }}>
-                            {r.products?.product_name || '예약'} / {r.kg_amount}kg
-                          </div>
-                        ))}
-                        {dayReservs.length > (isMobile ? 1 : 3) && (
-                          <div style={styles.moreReserv}>
-                            {isMobile ? `+${dayReservs.length - 1}건` : `+${dayReservs.length - 3}건 더보기`}
-                          </div>
-                        )}
+                      <div style={st.reservList}>
+                        {dayReservs.slice(0, 2).map((r: any) => {
+                          const ss = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
+                          return (
+                            <div key={r.reservation_id} style={{ ...st.myReserv, borderLeftColor: ss.color }}>
+                              <span style={st.myReservKg}>{r.kg_amount}kg</span>
+                              <span style={{ ...st.myReservStatus, color: ss.color }}>{STATUS_LABEL[r.status]}</span>
+                            </div>
+                          );
+                        })}
+                        {dayReservs.length > 2 && <span style={st.moreCount}>+{dayReservs.length - 2}</span>}
                       </div>
-                      {!isPast && !isHoliday && (
-                        <div style={styles.clickHint}>클릭하여 용량 확인</div>
-                      )}
                     </>
                   )}
                 </div>
@@ -246,108 +291,113 @@ export default function CalendarPage() {
         ))}
       </div>
 
-      {/* 날짜별 기기 잔여 용량 모달 */}
-      {modal && (
-        <div
-          data-modal="day-slots"
-          style={{
-            ...styles.modalOverlay,
-            top: modal.anchorRect.bottom + window.scrollY + 4,
-            left: Math.min(modal.anchorRect.left + window.scrollX, window.innerWidth - 260),
-          }}
-        >
-          <div style={styles.modalHeader}>
-            <span style={styles.modalTitle}>{modal.dateStr} 잔여 용량</span>
-            <button style={styles.modalClose} onClick={() => setModal(null)}>✕</button>
-          </div>
-          {modal.slots.length === 0 ? (
-            <div style={styles.modalEmpty}>예약 가능한 기기가 없습니다.</div>
-          ) : (
-            <div style={styles.modalSlotList}>
-              {modal.slots.map((s) => (
-                <div key={s.equipment_id} style={styles.modalSlotRow}>
-                  <span style={styles.modalEquipName}>{s.name}</span>
-                  <span style={{
-                    ...styles.modalCapacity,
-                    color: s.available_capacity <= 5 ? '#EF4444' : '#10B981',
-                  }}>
-                    {s.available_capacity}kg 남음
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          {modal.slots.length > 0 && (
-            <button style={styles.reserveBtn} onClick={handleReserve}>예약 신청</button>
-          )}
-        </div>
-      )}
-
-      {/* 토스트 메시지 */}
-      {toast && (
-        <div style={styles.toast}>{toast}</div>
-      )}
+      {toast && <div style={st.toast}>{toast}</div>}
     </Layout>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  actionBtn: { padding: '8px 16px', background: '#B11F39', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  calHeader: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 },
-  navBtn: { width: 28, height: 28, border: '1px solid #e0e0e0', background: '#fff', borderRadius: 6, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  monthLabel: { fontSize: 15, fontWeight: 600, color: '#1a1a1a', minWidth: 100, textAlign: 'center' },
-  legend: { display: 'flex', gap: 16, marginLeft: 16, flexWrap: 'wrap' },
-  legendItem: { display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#666' },
-  legendDot: { width: 8, height: 8, borderRadius: '50%' },
-  calendar: { background: '#fff', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden', position: 'relative' },
-  dayHeader: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #f0f0f0', background: '#1a1a1a' },
-  dayName: { padding: '10px 0', textAlign: 'center', fontSize: 11, fontWeight: 600, letterSpacing: 0.5 },
-  week: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #f0f0f0' },
-  cell: { minHeight: 90, padding: '8px 6px', borderRight: '1px solid #f0f0f0', position: 'relative' },
-  dayNum: { fontSize: 13, fontWeight: 500, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
-  todayNum: { color: '#B11F39', fontWeight: 700 },
-  todayDot: { width: 5, height: 5, background: '#B11F39', borderRadius: '50%' },
-  holidayBadge: { fontSize: 9, fontWeight: 700, color: '#6B7280', background: '#E5E7EB', borderRadius: 3, padding: '1px 4px', marginLeft: 2 },
-  reservList: { display: 'flex', flexDirection: 'column', gap: 2 },
-  reservBadge: { padding: '2px 5px', borderRadius: 3, fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  moreReserv: { fontSize: 10, color: '#999', paddingLeft: 5 },
-  clickHint: { position: 'absolute', bottom: 4, right: 6, fontSize: 9, color: '#ccc' },
-  // Modal
-  modalOverlay: {
-    position: 'fixed',
-    zIndex: 1000,
-    background: '#fff',
-    border: '1px solid #E5E7EB',
-    borderRadius: 10,
-    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-    padding: 16,
-    minWidth: 240,
-    maxWidth: 280,
+const st: Record<string, React.CSSProperties> = {
+  // ── 상단 ──
+  topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
+  pageTitle: { fontSize: 18, fontWeight: 700, color: '#0A0A0A', margin: 0, letterSpacing: -0.3 },
+  actionBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    padding: '9px 20px', background: '#B11F39', color: '#fff',
+    border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600,
+    cursor: 'pointer', boxShadow: '0 1px 3px rgba(177,31,57,0.25)',
   },
-  modalHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  modalTitle: { fontSize: 13, fontWeight: 700, color: '#111827' },
-  modalClose: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#9CA3AF', padding: '0 2px' },
-  modalEmpty: { fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '12px 0' },
-  modalSlotList: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 },
-  modalSlotRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#F9FAFB', borderRadius: 6 },
-  modalEquipName: { fontSize: 12, color: '#374151', fontWeight: 500 },
-  modalCapacity: { fontSize: 12, fontWeight: 700 },
-  reserveBtn: { width: '100%', padding: '9px 0', background: '#B11F39', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  // Toast
+
+  // ── 용량 필터 ──
+  filterCard: {
+    background: '#fff', borderRadius: 12, padding: '16px 20px',
+    border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+    marginBottom: 16,
+  },
+  filterTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  filterLabel: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#555' },
+  filterClear: {
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+    fontSize: 11, color: '#999', background: 'none', border: '1px solid #E8E8E8',
+    borderRadius: 5, padding: '3px 8px', cursor: 'pointer',
+  },
+  filterRow: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+  presets: { display: 'flex', gap: 6 },
+  presetBtn: {
+    padding: '7px 14px', fontSize: 13, fontWeight: 600, color: '#666',
+    background: '#F5F5F5', border: '1px solid #EEEEEE', borderRadius: 8,
+    cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif",
+    transition: 'all 0.15s',
+  },
+  presetActive: { background: '#0A0A0A', color: '#fff', border: '1px solid #0A0A0A' },
+  customInput: {
+    display: 'flex', alignItems: 'center', gap: 0,
+    border: '1px solid #EEEEEE', borderRadius: 8, overflow: 'hidden',
+    background: '#FAFAFA',
+  },
+  kgInput: {
+    width: 72, padding: '7px 10px', border: 'none', background: 'transparent',
+    fontSize: 13, fontFamily: "'Space Grotesk', sans-serif", outline: 'none',
+    color: '#333',
+  },
+  kgUnit: { fontSize: 12, color: '#AAA', fontWeight: 500, paddingRight: 4 },
+  kgApply: {
+    padding: '7px 12px', background: '#F0F0F0', border: 'none', borderLeft: '1px solid #EEEEEE',
+    fontSize: 12, fontWeight: 600, color: '#555', cursor: 'pointer',
+  },
+  filterInfo: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    marginTop: 10, fontSize: 11, color: '#B11F39', fontWeight: 500,
+  },
+  filterInfoDot: { width: 6, height: 6, borderRadius: '50%', background: '#B11F39', flexShrink: 0 },
+
+  // ── 월 네비 ──
+  monthNav: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 },
+  monthNavLeft: { display: 'flex', alignItems: 'center', gap: 8 },
+  navBtn: {
+    width: 32, height: 32, border: '1px solid #EEEEEE', background: '#fff', borderRadius: 8,
+    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666',
+  },
+  monthLabel: { fontSize: 16, fontWeight: 700, color: '#0A0A0A', minWidth: 100, textAlign: 'center', letterSpacing: -0.3 },
+  todayBtn: {
+    padding: '5px 12px', fontSize: 12, fontWeight: 600, color: '#666',
+    background: '#F5F5F5', border: '1px solid #EEEEEE', borderRadius: 6, cursor: 'pointer', marginLeft: 4,
+  },
+  legend: { display: 'flex', gap: 14, flexWrap: 'wrap' },
+  legendItem: { display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#999', fontWeight: 500 },
+  legendDot: { width: 7, height: 7, borderRadius: '50%' },
+
+  // ── 캘린더 ──
+  calendarCard: {
+    background: '#fff', borderRadius: 12, overflow: 'hidden',
+    border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+  },
+  dayHeader: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #F0F0F0' },
+  dayName: { padding: '12px 0', textAlign: 'center', fontSize: 12, fontWeight: 600, letterSpacing: 0.5, background: '#FAFAFA' },
+  week: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' },
+  cell: { minHeight: 130, padding: '10px 8px', display: 'flex', flexDirection: 'column' },
+
+  dayTopRow: { display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8, flexWrap: 'wrap' },
+  dayNum: { fontSize: 13, fontWeight: 500, fontFamily: "'Space Grotesk', sans-serif" },
+  todayNum: {
+    color: '#fff', fontWeight: 700, background: '#B11F39', borderRadius: '50%',
+    width: 24, height: 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12,
+  },
+  holidayTag: { fontSize: 9, fontWeight: 600, color: '#999', background: '#F0F0F0', borderRadius: 4, padding: '1px 5px', border: '1px solid #E8E8E8' },
+  availTag: { fontSize: 9, fontWeight: 600, borderRadius: 4, padding: '2px 6px', marginLeft: 'auto' },
+
+  reservList: { display: 'flex', flexDirection: 'column', gap: 4, flex: 1 },
+  myReserv: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '4px 8px', borderRadius: 4, background: '#FAFAFA', borderLeft: '2px solid #CCC', fontSize: 10,
+  },
+  myReservKg: { fontWeight: 600, color: '#333', fontFamily: "'Space Grotesk', sans-serif" },
+  myReservStatus: { fontWeight: 600, fontSize: 9 },
+  moreCount: { fontSize: 10, color: '#CCC', fontWeight: 500, paddingLeft: 4 },
+
   toast: {
-    position: 'fixed',
-    bottom: 32,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background: '#1F2937',
-    color: '#fff',
-    padding: '10px 20px',
-    borderRadius: 8,
-    fontSize: 13,
-    fontWeight: 500,
-    zIndex: 2000,
-    pointerEvents: 'none',
-    whiteSpace: 'nowrap',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+    position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+    background: '#0A0A0A', color: '#fff', padding: '10px 20px', borderRadius: 8,
+    fontSize: 13, fontWeight: 500, zIndex: 2000, pointerEvents: 'none', whiteSpace: 'nowrap',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
   },
 };
