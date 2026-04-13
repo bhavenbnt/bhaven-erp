@@ -63,6 +63,28 @@
 
 ---
 
+## 🔧 2차 고도화 — 기술 부채 정리
+
+### Supabase Auth + public.users UUID 마이그레이션
+- **현재**: Supabase Auth(비밀번호 인증) + `public.users`(integer PK, 역할/업체정보)가 분리 운영
+- **문제**: `public.users.user_id`가 integer이라 Supabase Auth의 UUID와 불일치. RLS 적용 불가.
+- **목표**: `public.users`를 `public.profiles`로 전환, PK를 Supabase Auth UUID로 통일
+- **작업 범위**:
+  - [ ] `public.profiles` 테이블 생성 (PK = auth.users.id UUID)
+  - [ ] reservations, notifications, inquiries 등 모든 FK를 UUID로 마이그레이션
+  - [ ] API 전체 (30+개 라우트) user_id → UUID 대응
+  - [ ] 프론트엔드 user_id 참조 전체 수정
+  - [ ] `public.users.password` 컬럼 제거 (Supabase Auth가 관리)
+  - [ ] Supabase RLS 정책 적용 (행 수준 보안)
+  - [ ] auth trigger: 회원가입 시 `public.profiles` 자동 생성
+- **리스크**: 전체 DB 스키마 변경 — 반드시 별도 브랜치에서 진행, QA 필수
+- **시기**: Go-Live 이후 안정화 단계에서 진행 권장
+
+### notifications 테이블 정규화
+- **현재**: `is_read` (boolean) 단일 필드로 읽음 처리
+- **목표**: 카카오 알림톡 발송 상태와 인앱 알림 상태를 분리 관리
+- **작업**: `channel` (in_app/kakao/sms), `delivery_status` (pending/sent/failed/read) 컬럼 추가
+
 ## 🔮 추후 확장 예정 (별도 프로젝트)
 
 - **BI 통계 대시보드** — 기기별/업체별 월간 차트, Recharts 도입. 현재 텍스트 표 통계는 운영 가능 수준.
