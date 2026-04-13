@@ -9,21 +9,33 @@ import useIsMobile from '@/hooks/useIsMobile';
 import { Icons, NAV_ICONS } from './icons';
 
 const CUSTOMER_NAV = [
+  // 홈
   { path: '/dashboard', label: '대시보드' },
+  // 예약
   { path: '/calendar', label: '예약 캘린더' },
   { path: '/reservations', label: '내 예약 현황' },
+  // 소통
   { path: '/inquiries', label: '관리자 문의' },
+  // 설정
   { path: '/profile', label: '프로필 설정' },
 ];
 
 const ADMIN_NAV = [
   { path: '/admin', label: '대시보드' },
   { path: '/admin/reservations', label: '예약 관리' },
-  { path: '/admin/inquiries', label: '문의 관리' },
-  { path: '/admin/equipment', label: '기기 관리' },
   { path: '/admin/calendar', label: '생산 캘린더' },
-  { path: '/admin/employees', label: '직원 관리' },
+  { path: '/admin/equipment', label: '기기 관리' },
+  { path: '/admin/inquiries', label: '문의 관리' },
+];
+
+const SUPER_ADMIN_NAV = [
+  { path: '/admin', label: '대시보드' },
+  { path: '/admin/reservations', label: '예약 관리' },
+  { path: '/admin/calendar', label: '생산 캘린더' },
+  { path: '/admin/equipment', label: '기기 관리' },
   { path: '/admin/customers', label: '고객사 관리' },
+  { path: '/admin/employees', label: '직원 관리' },
+  { path: '/admin/inquiries', label: '문의 관리' },
 ];
 
 const WORKER_NAV = [
@@ -50,7 +62,8 @@ export default function Sidebar() {
 
   const handleLogout = () => { logout(); router.push('/login'); };
 
-  const navItems = user?.role === 'admin' ? ADMIN_NAV
+  const navItems = user?.role === 'admin'
+    ? (user?.is_super ? SUPER_ADMIN_NAV : ADMIN_NAV)
     : user?.role === 'worker' ? WORKER_NAV
     : CUSTOMER_NAV;
 

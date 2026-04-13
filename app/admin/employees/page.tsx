@@ -4,92 +4,290 @@ import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
+import { Icons } from '@/components/icons';
+
+const TABS = [
+  { key: 'all', label: '전체' },
+  { key: 'admin', label: '관리자' },
+  { key: 'worker', label: '작업자' },
+];
+
+const PAGE_SIZE = 10;
 
 export default function Employees() {
   const router = useRouter();
   const { user } = useAuth();
   const [employees, setEmployees] = useState<any[]>([]);
+  const [tab, setTab] = useState('all');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [confirmModal, setConfirmModal] = useState<{ userId: number; action: string; label: string } | null>(null);
 
   useEffect(() => {
     if (!user) router.replace('/login');
     else if (user.role !== 'admin') router.replace('/');
   }, [user, router]);
 
-  const load = () => api.get('/users?role=worker').then(({ data }: any) => setEmployees(data.data || [])).catch(() => {});
+  const load = () => {
+    Promise.all([
+      api.get('/users?role=worker'),
+      api.get('/users?role=admin'),
+    ]).then(([workerRes, adminRes]) => {
+      setEmployees([...((adminRes as any).data.data || []), ...((workerRes as any).data.data || [])]);
+    }).catch(() => {});
+  };
   useEffect(() => { load(); }, []);
 
   if (!user) return null;
 
-  const toggle = async (u: any) => {
-    await api.put(`/users/${u.user_id}/status`, { is_active: !u.is_active }).catch(() => {});
+  const filtered = employees.filter((u: any) => {
+    if (tab === 'admin' && u.role !== 'admin') return false;
+    if (tab === 'worker' && u.role !== 'worker') return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!(u.name || '').toLowerCase().includes(q) && !u.email.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const handleTab = (key: string) => { setTab(key); setPage(1); };
+  const getCount = (key: string) => {
+    if (key === 'all') return employees.length;
+    return employees.filter(u => u.role === key).length;
+  };
+
+  const execAction = async () => {
+    if (!confirmModal) return;
+    const { userId, action } = confirmModal;
+    try {
+      if (action === 'to-admin') await api.put(`/users/${userId}/role`, { role: 'admin' });
+      else if (action === 'to-worker') await api.put(`/users/${userId}/role`, { role: 'worker' });
+      else if (action === 'suspend') await api.put(`/users/${userId}/status`, { is_active: false });
+      else if (action === 'unsuspend') await api.put(`/users/${userId}/status`, { is_active: true });
+    } catch {}
+    setConfirmModal(null);
     load();
   };
 
-  const changeRole = async (userId: number, newRole: string) => {
-    if (newRole === 'admin' && !confirm('관리자로 승격하시겠습니까?')) return;
-    if (newRole === 'worker' && !confirm('작업자로 변경하시겠습니까?')) return;
-    try {
-      await api.put(`/users/${userId}/role`, { role: newRole });
-      load();
-    } catch (e: any) {
-      alert(e.response?.data?.error || '변경에 실패했습니다.');
-    }
-  };
-
   return (
-    <Layout title="직원 관리">
+    <Layout
+      title=""
+      action={
+        <div style={s.topBar}>
+          <div style={s.topLeft}>
+            <h1 style={s.pageTitle}>직원 관리</h1>
+            <span style={s.totalBadge}>{employees.length}명</span>
+          </div>
+          <div style={s.searchWrap}>
+            {Icons.users({ size: 14, color: '#BBB' })}
+            <input style={s.searchInput} placeholder="이름, 이메일 검색"
+              value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(1); }} />
+          </div>
+        </div>
+      }
+    >
+      {/* 확인 모달 */}
+      {confirmModal && (
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <div style={s.modalTitle}>{confirmModal.label}</div>
+            <p style={s.modalSub}>이 작업을 진행하시겠습니까?</p>
+            <div style={s.modalBtns}>
+              <button style={s.modalCancel} onClick={() => setConfirmModal(null)}>취소</button>
+              <button style={s.modalConfirm} onClick={execAction}>확인</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 탭 */}
+      <div style={s.tabRow}>
+        {TABS.map(t => {
+          const count = getCount(t.key);
+          const active = tab === t.key;
+          return (
+            <button key={t.key} onClick={() => handleTab(t.key)}
+              style={{ ...s.tab, ...(active ? s.tabActive : {}) }}>
+              <span>{t.label}</span>
+              {count > 0 && <span style={{ ...s.tabCount, ...(active ? s.tabCountActive : {}) }}>{count}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 테이블 */}
       <div style={s.tableCard}>
-        <table style={s.table}>
-          <thead>
-            <tr style={s.thead}>
-              {['#', '이름', '이메일', '연락처', '등록일', '역할', '상태', ''].map((h, i) => <th key={i} style={s.th}>{h}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {employees.length === 0 && <tr><td colSpan={8} style={s.empty}>등록된 직원이 없습니다.</td></tr>}
-            {employees.map((u: any) => (
-              <tr key={u.user_id} style={s.tr}>
-                <td style={{ ...s.td, color: '#999', textAlign: 'center' as const }}>{u.user_id}</td>
-                <td style={{ ...s.td, fontWeight: 500 }}>{u.name}</td>
-                <td style={s.td}>{u.email}</td>
-                <td style={s.td}>{u.contact_info || '-'}</td>
-                <td style={s.td}>{new Date(u.created_at).toLocaleDateString('ko-KR')}</td>
-                <td style={s.td}>
-                  <span style={{ ...s.badge, background: u.role === 'admin' ? '#EFF6FF' : '#F5F5F5', color: u.role === 'admin' ? '#1D4ED8' : '#555' }}>
-                    {u.role === 'admin' ? '관리자' : '작업자'}
-                  </span>
-                </td>
-                <td style={s.td}>
-                  <span style={{ ...s.badge, background: u.is_active ? '#ECFDF5' : '#FEF2F2', color: u.is_active ? '#10B981' : '#EF4444' }}>
-                    {u.is_active ? '활성' : '비활성'}
-                  </span>
-                </td>
-                <td style={{ ...s.td, display: 'flex', gap: 8 }}>
-                  <button style={s.toggleBtn} onClick={() => toggle(u)}>{u.is_active ? '비활성화' : '활성화'}</button>
-                  {u.role === 'worker' && (
-                    <button style={{ ...s.toggleBtn, color: '#1D4ED8', borderColor: '#BFDBFE' }} onClick={() => changeRole(u.user_id, 'admin')}>관리자로 승격</button>
-                  )}
-                  {u.role === 'admin' && (
-                    <button style={{ ...s.toggleBtn, color: '#B45309', borderColor: '#FDE68A' }} onClick={() => changeRole(u.user_id, 'worker')}>작업자로 변경</button>
-                  )}
-                </td>
+        <div style={s.tableWrap}>
+          <table style={s.table}>
+            <thead>
+              <tr>
+                <th style={s.th}>#</th>
+                <th style={s.th}>이름</th>
+                <th style={s.th}>이메일</th>
+                <th style={s.th}>연락처</th>
+                <th style={s.th}>등록일</th>
+                <th style={{ ...s.th, textAlign: 'center' }}>역할</th>
+                <th style={{ ...s.th, textAlign: 'center' }}>상태</th>
+                <th style={{ ...s.th, textAlign: 'center' }}>관리</th>
               </tr>
+            </thead>
+            <tbody>
+              {paginated.length === 0 && (
+                <tr><td colSpan={8} style={s.emptyRow}>
+                  <div style={s.emptyContent}>
+                    {Icons.users({ size: 24, color: '#DDD' })}
+                    <span>등록된 직원이 없습니다</span>
+                  </div>
+                </td></tr>
+              )}
+              {paginated.map((u: any) => (
+                <tr key={u.user_id} style={s.tr}>
+                  <td style={s.tdId}>{u.user_id}</td>
+                  <td style={s.tdName}>{u.name}</td>
+                  <td style={s.tdMuted}>{u.email}</td>
+                  <td style={s.td}>{u.contact_info || '-'}</td>
+                  <td style={s.td}>{new Date(u.created_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })}</td>
+                  <td style={{ ...s.td, textAlign: 'center' }}>
+                    <span style={{ ...s.roleBadge, ...(u.role === 'admin' ? s.roleAdmin : s.roleWorker) }}>
+                      {u.role === 'admin' ? '관리자' : '작업자'}
+                    </span>
+                  </td>
+                  <td style={{ ...s.td, textAlign: 'center' }}>
+                    <span style={{ ...s.statusBadge, ...(u.is_active ? s.badgeActive : s.badgeSuspended) }}>
+                      {u.is_active ? '정상' : '정지'}
+                    </span>
+                  </td>
+                  <td style={{ ...s.td, textAlign: 'center' }}>
+                    <div style={s.actionBtns}>
+                      {u.role === 'worker' && (
+                        <button style={s.actionBtn} onClick={() => setConfirmModal({ userId: u.user_id, action: 'to-admin', label: `${u.name}님을 관리자로 승격하시겠습니까?` })}>
+                          승격
+                        </button>
+                      )}
+                      {u.role === 'admin' && u.user_id !== user.user_id && (
+                        <button style={s.actionBtn} onClick={() => setConfirmModal({ userId: u.user_id, action: 'to-worker', label: `${u.name}님을 작업자로 변경하시겠습니까?` })}>
+                          변경
+                        </button>
+                      )}
+                      {u.user_id !== user.user_id && (
+                        u.is_active ? (
+                          <button style={s.actionBtnDanger} onClick={() => setConfirmModal({ userId: u.user_id, action: 'suspend', label: `${u.name}님의 계정을 정지하시겠습니까?` })}>
+                            정지
+                          </button>
+                        ) : (
+                          <button style={s.actionBtn} onClick={() => setConfirmModal({ userId: u.user_id, action: 'unsuspend', label: `${u.name}님의 계정을 활성화하시겠습니까?` })}>
+                            해제
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {totalPages > 1 && (
+          <div style={s.pagination}>
+            <button style={{ ...s.pageBtn, opacity: page > 1 ? 1 : 0.3 }} disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              <button key={p} style={{ ...s.pageNum, ...(p === page ? s.pageNumActive : {}) }}
+                onClick={() => setPage(p)}>{p}</button>
             ))}
-          </tbody>
-        </table>
+            <button style={{ ...s.pageBtn, opacity: page < totalPages ? 1 : 0.3 }} disabled={page >= totalPages}
+              onClick={() => setPage(p => p + 1)}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 18l6-6-6-6" /></svg>
+            </button>
+            <span style={s.pageInfo}>{filtered.length}명 중 {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filtered.length)}</span>
+          </div>
+        )}
       </div>
     </Layout>
   );
 }
 
-const s = {
-  tableCard: { background: '#fff', borderRadius: 10, border: '1px solid #E0E0E0', overflow: 'hidden' },
-  table: { width: '100%', borderCollapse: 'collapse' as const },
-  thead: { background: '#0A0A0A' },
-  th: { padding: '12px 16px', textAlign: 'left' as const, fontSize: 12, color: '#999', fontWeight: 500 },
-  tr: { borderBottom: '1px solid #F0F0F0' },
-  td: { padding: '14px 16px', fontSize: 13, color: '#333', verticalAlign: 'middle' as const },
-  empty: { textAlign: 'center' as const, padding: 40, color: '#aaa', fontSize: 14 },
-  badge: { padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 },
-  toggleBtn: { padding: '5px 12px', background: '#F5F5F5', color: '#555', border: '1px solid #E0E0E0', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
+const s: Record<string, React.CSSProperties> = {
+  topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 16 },
+  topLeft: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 },
+  pageTitle: { fontSize: 18, fontWeight: 700, color: '#0A0A0A', margin: 0, letterSpacing: -0.3 },
+  totalBadge: { fontSize: 12, fontWeight: 600, color: '#999', background: '#F0F0F0', padding: '3px 10px', borderRadius: 20 },
+  searchWrap: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '0 14px', height: 36, background: '#F5F5F5', borderRadius: 8, border: '1px solid #EEEEEE', minWidth: 220,
+  },
+  searchInput: { border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: '#0A0A0A', flex: 1 },
+
+  tabRow: { display: 'flex', gap: 4, marginBottom: 10, background: '#fff', borderRadius: 10, padding: 4, border: '1px solid #EEEEEE' },
+  tab: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '7px 16px', border: 'none', background: 'transparent',
+    borderRadius: 7, fontSize: 13, fontWeight: 500, color: '#999', cursor: 'pointer',
+  },
+  tabActive: { background: '#0A0A0A', color: '#fff', fontWeight: 600 },
+  tabCount: { fontSize: 10, fontWeight: 700, color: '#CCC', background: '#F0F0F0', borderRadius: 10, padding: '1px 6px', minWidth: 18, textAlign: 'center' },
+  tabCountActive: { color: '#fff', background: 'rgba(255,255,255,0.2)' },
+
+  tableCard: { background: '#fff', borderRadius: 12, overflow: 'hidden', border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' },
+  tableWrap: { overflowX: 'auto' },
+  table: { width: '100%', borderCollapse: 'collapse', minWidth: 800 },
+  th: {
+    padding: '12px 20px', textAlign: 'left' as const, fontSize: 11, color: '#AAA', fontWeight: 600,
+    textTransform: 'uppercase' as const, letterSpacing: 0.5, background: '#FAFAFA', borderBottom: '1px solid #F0F0F0',
+  },
+  tr: { borderBottom: '1px solid #F5F5F5' },
+  td: { padding: '14px 20px', fontSize: 13, color: '#333' },
+  tdId: { padding: '14px 20px', fontSize: 13, color: '#0A0A0A', fontWeight: 600, fontFamily: "'Space Grotesk', monospace" },
+  tdName: { padding: '14px 20px', fontSize: 13, color: '#0A0A0A', fontWeight: 500 },
+  tdMuted: { padding: '14px 20px', fontSize: 13, color: '#999' },
+
+  roleBadge: {
+    display: 'inline-block', padding: '4px 0', width: 56, textAlign: 'center' as const,
+    borderRadius: 6, fontSize: 11, fontWeight: 600, borderWidth: 1, borderStyle: 'solid',
+  },
+  roleAdmin: { color: '#0A0A0A', background: '#F0F0F0', borderColor: '#E0E0E0' },
+  roleWorker: { color: '#555', background: '#F5F5F5', borderColor: '#EBEBEB' },
+
+  statusBadge: {
+    display: 'inline-block', padding: '4px 0', width: 48, textAlign: 'center' as const,
+    borderRadius: 6, fontSize: 11, fontWeight: 600, borderWidth: 1, borderStyle: 'solid',
+  },
+  badgeActive: { color: '#0A0A0A', background: '#F0F0F0', borderColor: '#E0E0E0' },
+  badgeSuspended: { color: '#B11F39', background: '#FDF2F4', borderColor: '#F5D0D6' },
+
+  actionBtns: { display: 'flex', gap: 4, justifyContent: 'center' },
+  actionBtn: {
+    padding: '4px 10px', background: '#fff', color: '#555',
+    border: '1px solid #EEEEEE', borderRadius: 5, fontSize: 11, cursor: 'pointer',
+  },
+  actionBtnDanger: {
+    padding: '4px 10px', background: '#fff', color: '#B11F39',
+    border: '1px solid #F5D0D6', borderRadius: 5, fontSize: 11, cursor: 'pointer',
+  },
+
+  emptyRow: { padding: '60px 20px', textAlign: 'center' as const },
+  emptyContent: { display: 'inline-flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8, color: '#CCC', fontSize: 13 },
+
+  pagination: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '14px 20px', borderTop: '1px solid #F0F0F0' },
+  pageBtn: { width: 32, height: 32, border: '1px solid #EEEEEE', background: '#fff', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' },
+  pageNum: { width: 32, height: 32, border: 'none', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  pageNumActive: { background: '#0A0A0A', color: '#fff', fontWeight: 700 },
+  pageInfo: { fontSize: 11, color: '#CCC', marginLeft: 12 },
+
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  modal: {
+    background: '#fff', borderRadius: 12, padding: '24px 28px', width: 400,
+    display: 'flex', flexDirection: 'column', gap: 14,
+    border: '1px solid #EEEEEE', boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+  },
+  modalTitle: { fontSize: 16, fontWeight: 700, color: '#0A0A0A' },
+  modalSub: { fontSize: 12, color: '#999', margin: 0 },
+  modalBtns: { display: 'flex', gap: 8, justifyContent: 'flex-end' },
+  modalCancel: { padding: '9px 20px', background: '#fff', color: '#666', border: '1px solid #EEEEEE', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
+  modalConfirm: { padding: '9px 20px', background: '#0A0A0A', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
 };

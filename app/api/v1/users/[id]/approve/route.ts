@@ -10,6 +10,10 @@ export async function PUT(
   try {
     const result = requireAuth(req, 'admin');
     if ('error' in result) return result.error;
+    const { user } = result;
+
+    const { data: caller } = await supabase.from('users').select('is_super').eq('user_id', user.user_id).single();
+    if (!caller?.is_super) return Response.json({ error: '권한이 없습니다.' }, { status: 403 });
 
     const { id } = await params;
 

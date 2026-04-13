@@ -8,6 +8,7 @@ interface User {
   name?: string;
   company_name?: string;
   contact_info?: string;
+  is_super?: boolean;
 }
 
 interface AuthContextType {

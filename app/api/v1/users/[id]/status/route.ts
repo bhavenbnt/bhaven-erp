@@ -9,6 +9,11 @@ export async function PUT(
   try {
     const result = requireAuth(req, 'admin');
     if ('error' in result) return result.error;
+    const { user } = result;
+
+    // 슈퍼관리자만 계정 상태 변경 가능
+    const { data: caller } = await supabase.from('users').select('is_super').eq('user_id', user.user_id).single();
+    if (!caller?.is_super) return Response.json({ error: '권한이 없습니다.' }, { status: 403 });
 
     const { id } = await params;
     const { is_active } = await req.json();

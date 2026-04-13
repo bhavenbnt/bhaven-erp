@@ -13,7 +13,6 @@ export async function GET(req: NextRequest) {
     let query = supabase
       .from('users')
       .select('*')
-      .eq('is_active', true)
       .is('deleted_at', null);
 
     if (role) query = query.eq('role', role);

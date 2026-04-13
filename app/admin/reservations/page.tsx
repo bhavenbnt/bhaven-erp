@@ -33,10 +33,11 @@ function AdminReservationsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dateParam = searchParams.get('date') || '';
+  const searchParam = searchParams.get('search') || '';
   const { user } = useAuth();
   const [reservations, setReservations] = useState<any[]>([]);
   const [tab, setTab] = useState('all');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParam);
   const [dateFrom, setDateFrom] = useState(dateParam);
   const [dateTo, setDateTo] = useState(dateParam);
   const [page, setPage] = useState(1);
