@@ -283,15 +283,6 @@ const s: Record<string, React.CSSProperties> = {
   tdName: { padding: '14px 20px', fontSize: 13, color: '#0A0A0A', fontWeight: 500 },
   tdMuted: { padding: '14px 20px', fontSize: 13, color: '#999' },
   statusBadge: {
-    display: 'inline-block', padding: '4px 0', width: 56, textAlign: 'center' as const,
-    borderRadius: 6, fontSize: 11, fontWeight: 600, letterSpacing: 0.2,
-    borderWidth: 1, borderStyle: 'solid',
-  },
-  badgeActive: { color: '#0A0A0A', background: '#F0F0F0', borderColor: '#E0E0E0' },
-  badgeInactive: { color: '#AAA', background: '#FAFAFA', borderColor: '#F0F0F0' },
-  badgeApproved: { color: '#555', background: '#F5F5F5', borderColor: '#EBEBEB' },
-  badgePending: { color: '#B11F39', background: '#FDF2F4', borderColor: '#F5D0D6' },
-  statusBadge: {
     display: 'inline-block', padding: '4px 0', width: 48, textAlign: 'center' as const,
     borderRadius: 6, fontSize: 11, fontWeight: 600, borderWidth: 1, borderStyle: 'solid',
   },
