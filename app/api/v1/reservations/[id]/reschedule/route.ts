@@ -15,9 +15,9 @@ export async function PUT(
     const { id } = await params;
     const { scheduled_date, equipment_id, reason, notify_kakao } = await req.json();
 
-    if (!scheduled_date && !equipment_id) {
+    if (!scheduled_date) {
       return Response.json(
-        { error: 'scheduled_date 또는 equipment_id 중 하나는 필요합니다.' },
+        { error: 'scheduled_date는 필수입니다.' },
         { status: 400 }
       );
     }

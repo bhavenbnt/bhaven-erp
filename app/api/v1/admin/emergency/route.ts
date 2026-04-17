@@ -48,6 +48,16 @@ export async function POST(req: NextRequest) {
 
     // 문의가 있으면 RESOLVED 처리
     if (inquiry_id) {
+      const { data: inquiry, error: inquiryError } = await supabase
+        .from('inquiries')
+        .select('inquiry_id')
+        .eq('inquiry_id', inquiry_id)
+        .single();
+
+      if (inquiryError || !inquiry) {
+        return Response.json({ error: '문의를 찾을 수 없습니다.' }, { status: 404 });
+      }
+
       await supabase
         .from('inquiries')
         .update({ status: 'RESOLVED' })

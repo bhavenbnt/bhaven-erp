@@ -14,7 +14,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('shipments')
-      .select('*, users(name)')
+      .select('*, users!shipments_shipped_by_fkey(name)')
       .eq('reservation_id', reservation_id)
       .single();
 

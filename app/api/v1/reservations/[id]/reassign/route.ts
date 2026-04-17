@@ -42,10 +42,12 @@ export async function PUT(
       return Response.json({ error: '재배정할 수 없는 상태입니다.' }, { status: 400 });
     }
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('reservations')
       .update({ equipment_id })
       .eq('reservation_id', id);
+
+    if (updateError) throw updateError;
 
     await supabase.from('reservation_status_logs').insert({
       reservation_id: id,
