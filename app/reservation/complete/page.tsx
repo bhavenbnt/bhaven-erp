@@ -16,13 +16,32 @@ export default function ReservationComplete() {
     if (!user) router.replace('/login');
   }, [user, router]);
 
+  const [noData, setNoData] = useState(false);
+
   useEffect(() => {
     const data = sessionStorage.getItem('reservationComplete');
-    if (!data) { router.replace('/reservations'); return; }
+    if (!data) { setNoData(true); return; }
     setState(JSON.parse(data));
   }, []);
 
   if (!user) return null;
+
+  if (noData) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.successArea}>
+          <div style={styles.checkCircle}>✓</div>
+          <div style={styles.successTitle}>예약이 완료되었습니다</div>
+          <div style={styles.successSub}>상세 내용은 예약 현황에서 확인할 수 있습니다.</div>
+        </div>
+        <div style={styles.btnRow}>
+          <button style={styles.btnSecondary} onClick={() => router.push('/reservations')}>내 예약 현황 보기</button>
+          <button style={styles.btnPrimary} onClick={() => router.push('/dashboard')}>대시보드로 이동</button>
+        </div>
+      </div>
+    );
+  }
+
   if (!state) return null;
 
   const formatDate = (dateStr: string) => {

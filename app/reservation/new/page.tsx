@@ -126,14 +126,14 @@ function ReservationNewContent() {
         yield_rate: parseFloat(String(form.yield_rate)), scheduled_date: form.scheduled_date, notes: form.notes,
       });
       sessionStorage.setItem('reservationComplete', JSON.stringify({
-        reservations: data.reservations, scheduled_date: form.scheduled_date,
+        reservations: data.data?.reservations ?? data.reservations, scheduled_date: form.scheduled_date,
         product_name: form.product_name, product_type: form.product_type,
         kg_amount: form.kg_amount, expectedOutput,
       }));
       router.push('/reservation/complete');
     } catch (err: any) {
       const msg = err.response?.data?.error || '예약 신청에 실패했습니다.';
-      if (msg.includes('가용 슬롯이 부족')) {
+      if (msg.includes('가용 가능한 설비가 없습니다')) {
         sessionStorage.setItem('inquiryPrefill', JSON.stringify({
           product_name: form.product_name, product_type: form.product_type,
           kg_amount: form.kg_amount, desired_date: form.scheduled_date,

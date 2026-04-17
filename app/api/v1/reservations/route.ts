@@ -227,6 +227,19 @@ export async function POST(req: NextRequest) {
 
     if (resError) throw resError;
 
+    // 생성된 예약을 equipment 조인하여 다시 조회
+    const reservationIds = createdReservations?.map((r) => r.reservation_id) ?? [];
+    const { data: fullReservations } = await supabase
+      .from('reservations')
+      .select('reservation_id, kg_amount, equipment(name)')
+      .in('reservation_id', reservationIds);
+
+    const reservationsWithEquip = (fullReservations ?? []).map((r: any) => ({
+      reservation_id: r.reservation_id,
+      equipment_name: r.equipment?.name ?? '-',
+      assigned_kg: r.kg_amount,
+    }));
+
     // 관리자들에게 신규 예약 알림
     const { data: companyInfo } = await supabase
       .from('users')
@@ -245,7 +258,7 @@ export async function POST(req: NextRequest) {
     return Response.json(
       {
         status: 'success',
-        data: { reservation_ids: createdReservations?.map((r) => r.reservation_id) },
+        data: { reservation_ids: reservationIds, reservations: reservationsWithEquip },
       },
       { status: 201 }
     );
