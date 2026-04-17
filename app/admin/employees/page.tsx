@@ -22,6 +22,10 @@ export default function Employees() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [confirmModal, setConfirmModal] = useState<{ userId: number; action: string; label: string } | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ email: '', password: '', name: '', role: 'worker', contact_info: '' });
+  const [createError, setCreateError] = useState('');
+  const [createLoading, setCreateLoading] = useState(false);
 
   useEffect(() => {
     if (!user) router.replace('/login');
@@ -37,6 +41,21 @@ export default function Employees() {
     }).catch(() => {});
   };
   useEffect(() => { load(); }, []);
+
+  const handleCreate = async () => {
+    if (!createForm.email || !createForm.password || !createForm.name) {
+      setCreateError('이메일, 비밀번호, 이름은 필수입니다.'); return;
+    }
+    setCreateLoading(true); setCreateError('');
+    try {
+      await api.post('/admin/create-employee', createForm);
+      setShowCreate(false);
+      setCreateForm({ email: '', password: '', name: '', role: 'worker', contact_info: '' });
+      load();
+    } catch (e: any) {
+      setCreateError(e.response?.data?.error || '등록에 실패했습니다.');
+    } finally { setCreateLoading(false); }
+  };
 
   if (!user) return null;
 
@@ -80,14 +99,75 @@ export default function Employees() {
             <h1 style={s.pageTitle}>직원 관리</h1>
             <span style={s.totalBadge}>{employees.length}명</span>
           </div>
-          <div style={s.searchWrap}>
-            {Icons.users({ size: 14, color: '#BBB' })}
-            <input style={s.searchInput} placeholder="이름, 이메일 검색"
-              value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(1); }} />
+          <div style={s.topRight}>
+            <div style={s.searchWrap}>
+              {Icons.users({ size: 14, color: '#BBB' })}
+              <input style={s.searchInput} placeholder="이름, 이메일 검색"
+                value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(1); }} />
+            </div>
+            <button style={s.createBtn} onClick={() => setShowCreate(true)}>
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+              <span>직원 등록</span>
+            </button>
           </div>
         </div>
       }
     >
+      {/* 직원 등록 모달 */}
+      {showCreate && (
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <div style={s.modalHeader}>
+              <span style={s.modalTitle}>직원 등록</span>
+              <button style={s.modalClose} onClick={() => { setShowCreate(false); setCreateError(''); }}>
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <p style={s.modalSub}>관리자 또는 작업자 계정을 생성합니다.</p>
+            <div style={s.modalRow}>
+              <div style={s.modalField}>
+                <label style={s.modalLabel}>이메일 <span style={{ color: '#B11F39' }}>*</span></label>
+                <input style={s.modalInput} placeholder="worker@bhaven.com" value={createForm.email} autoComplete="off"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreateForm(f => ({ ...f, email: e.target.value }))} />
+              </div>
+              <div style={s.modalField}>
+                <label style={s.modalLabel}>비밀번호 <span style={{ color: '#B11F39' }}>*</span></label>
+                <input style={s.modalInput} type="password" placeholder="6자 이상" value={createForm.password} autoComplete="new-password"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreateForm(f => ({ ...f, password: e.target.value }))} />
+              </div>
+            </div>
+            <div style={s.modalRow}>
+              <div style={s.modalField}>
+                <label style={s.modalLabel}>이름 <span style={{ color: '#B11F39' }}>*</span></label>
+                <input style={s.modalInput} placeholder="홍길동" value={createForm.name}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreateForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div style={s.modalField}>
+                <label style={s.modalLabel}>역할</label>
+                <div style={s.roleSegRow}>
+                  <button type="button" style={{ ...s.roleSeg, ...(createForm.role === 'worker' ? s.roleSegOn : {}) }}
+                    onClick={() => setCreateForm(f => ({ ...f, role: 'worker' }))}>작업자</button>
+                  <button type="button" style={{ ...s.roleSeg, ...(createForm.role === 'admin' ? s.roleSegOn : {}) }}
+                    onClick={() => setCreateForm(f => ({ ...f, role: 'admin' }))}>관리자</button>
+                </div>
+              </div>
+            </div>
+            <div style={s.modalField}>
+              <label style={s.modalLabel}>연락처</label>
+              <input style={s.modalInput} placeholder="010-0000-0000" value={createForm.contact_info}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreateForm(f => ({ ...f, contact_info: e.target.value }))} />
+            </div>
+            {createError && <div style={s.modalError}>{createError}</div>}
+            <div style={s.modalBtns}>
+              <button style={s.modalCancel} onClick={() => { setShowCreate(false); setCreateError(''); }}>취소</button>
+              <button style={s.modalConfirmBtn} onClick={handleCreate} disabled={createLoading}>
+                {createLoading ? '등록 중...' : '직원 등록'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 확인 모달 */}
       {confirmModal && (
         <div style={s.overlay}>
@@ -213,8 +293,15 @@ export default function Employees() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 16 },
+  topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
   topLeft: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 },
+  topRight: { display: 'flex', alignItems: 'center', gap: 10 },
+  createBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    padding: '9px 20px', background: '#B11F39', color: '#fff',
+    border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600,
+    cursor: 'pointer', boxShadow: '0 1px 3px rgba(177,31,57,0.25)', flexShrink: 0,
+  },
   pageTitle: { fontSize: 18, fontWeight: 700, color: '#0A0A0A', margin: 0, letterSpacing: -0.3 },
   totalBadge: { fontSize: 12, fontWeight: 600, color: '#999', background: '#F0F0F0', padding: '3px 10px', borderRadius: 20 },
   searchWrap: {
@@ -290,4 +377,17 @@ const s: Record<string, React.CSSProperties> = {
   modalBtns: { display: 'flex', gap: 8, justifyContent: 'flex-end' },
   modalCancel: { padding: '9px 20px', background: '#fff', color: '#666', border: '1px solid #EEEEEE', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
   modalConfirm: { padding: '9px 20px', background: '#0A0A0A', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+
+  // ── 직원 등록 모달 ──
+  modalHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  modalClose: { background: 'none', border: 'none', cursor: 'pointer', color: '#CCC', padding: 2, lineHeight: 0 },
+  modalRow: { display: 'flex', gap: 12 },
+  modalField: { display: 'flex', flexDirection: 'column', gap: 5, flex: 1 },
+  modalLabel: { fontSize: 11, fontWeight: 600, color: '#888' },
+  modalInput: { padding: '0 14px', border: '1px solid #EEEEEE', borderRadius: 8, fontSize: 13, outline: 'none', color: '#0A0A0A', background: '#FAFAFA', height: 38 },
+  modalError: { padding: '8px 14px', borderRadius: 8, background: '#FDF2F4', border: '1px solid #F5D0D6', color: '#B11F39', fontSize: 12, fontWeight: 500 },
+  modalConfirmBtn: { padding: '9px 20px', background: '#B11F39', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 3px rgba(177,31,57,0.25)' },
+  roleSegRow: { display: 'inline-flex', background: '#F0F0F0', borderRadius: 7, padding: 2, height: 38, alignItems: 'center' },
+  roleSeg: { padding: '0 16px', height: 34, fontSize: 12, fontWeight: 600, color: '#888', background: 'transparent', border: 'none', borderRadius: 6, cursor: 'pointer' },
+  roleSegOn: { background: '#0A0A0A', color: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
 };

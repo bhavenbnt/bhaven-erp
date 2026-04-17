@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import bcrypt from 'bcryptjs';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAuth } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,13 +9,22 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // 1. Supabase Auth에 사용자 생성
+    const { data: authData, error: authError } = await supabaseAuth.auth.signUp({ email, password });
 
+    if (authError || !authData.user) {
+      if (authError?.message?.includes('already registered')) {
+        return Response.json({ error: '이미 사용 중인 이메일입니다.' }, { status: 409 });
+      }
+      throw authError;
+    }
+
+    // 2. public.users에 사용자 정보 저장 (비밀번호는 Supabase Auth가 관리)
     const { data, error } = await supabase
       .from('users')
       .insert({
         email,
-        password: hashedPassword,
+        password: '-',
         name,
         role: 'customer',
         is_active: true,
