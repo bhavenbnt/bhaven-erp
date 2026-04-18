@@ -20,7 +20,7 @@ export async function PUT(
 
     const { data: equipment, error: equipError } = await supabase
       .from('equipment')
-      .select('equipment_id')
+      .select('equipment_id, max_capacity')
       .eq('equipment_id', equipment_id)
       .single();
 
@@ -30,7 +30,7 @@ export async function PUT(
 
     const { data: current, error: fetchError } = await supabase
       .from('reservations')
-      .select('status')
+      .select('status, kg_amount, scheduled_date')
       .eq('reservation_id', id)
       .single();
 
@@ -40,6 +40,29 @@ export async function PUT(
 
     if (!['PENDING', 'CONFIRMED'].includes(current.status)) {
       return Response.json({ error: '재배정할 수 없는 상태입니다.' }, { status: 400 });
+    }
+
+    // 용량 검증: 해당 기기의 같은 날짜 기존 예약 kg 합산 + 현재 예약 kg가 max_capacity 초과 시 거부
+    const { data: existingReservations, error: existingError } = await supabase
+      .from('reservations')
+      .select('kg_amount')
+      .eq('equipment_id', equipment_id)
+      .eq('scheduled_date', current.scheduled_date)
+      .neq('status', 'CANCELLED')
+      .neq('reservation_id', id);
+
+    if (existingError) throw existingError;
+
+    const usedCapacity = (existingReservations ?? []).reduce(
+      (sum: number, r: { kg_amount: number }) => sum + (r.kg_amount ?? 0),
+      0
+    );
+
+    if (usedCapacity + (current.kg_amount ?? 0) > equipment.max_capacity) {
+      return Response.json(
+        { error: '해당 기기의 잔여 용량이 부족합니다.' },
+        { status: 422 }
+      );
     }
 
     const { error: updateError } = await supabase

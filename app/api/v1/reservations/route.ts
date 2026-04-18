@@ -225,7 +225,11 @@ export async function POST(req: NextRequest) {
       .insert(reservationInserts)
       .select('reservation_id');
 
-    if (resError) throw resError;
+    if (resError) {
+      // Clean up orphaned product
+      await supabase.from('products').delete().eq('product_id', product.product_id);
+      throw resError;
+    }
 
     // 생성된 예약을 equipment 조인하여 다시 조회
     const reservationIds = createdReservations?.map((r) => r.reservation_id) ?? [];

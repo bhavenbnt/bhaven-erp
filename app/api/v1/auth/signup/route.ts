@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
         name,
         role: 'customer',
         is_active: true,
+        is_approved: true,
         company_name,
         contact_info,
         role_title,

@@ -26,6 +26,7 @@ export default function Employees() {
   const [createForm, setCreateForm] = useState({ email: '', password: '', name: '', role: 'worker', contact_info: '' });
   const [createError, setCreateError] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
+  const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     if (!user) router.replace('/login');
@@ -41,6 +42,13 @@ export default function Employees() {
     }).catch(() => {});
   };
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (actionMsg) {
+      const t = setTimeout(() => setActionMsg(null), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [actionMsg]);
 
   const handleCreate = async () => {
     if (!createForm.email || !createForm.password || !createForm.name) {
@@ -85,7 +93,11 @@ export default function Employees() {
       else if (action === 'to-worker') await api.put(`/users/${userId}/role`, { role: 'worker' });
       else if (action === 'suspend') await api.put(`/users/${userId}/status`, { is_active: false });
       else if (action === 'unsuspend') await api.put(`/users/${userId}/status`, { is_active: true });
-    } catch {}
+      setActionMsg({ type: 'success', text: '변경이 완료되었습니다.' });
+    } catch (e: any) {
+      const msg = e.response?.data?.error || '작업 처리 중 오류가 발생했습니다.';
+      setActionMsg({ type: 'error', text: msg });
+    }
     setConfirmModal(null);
     load();
   };
@@ -113,6 +125,23 @@ export default function Employees() {
         </div>
       }
     >
+      {/* 액션 결과 토스트 */}
+      {actionMsg && (
+        <div style={{
+          position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 1100,
+          padding: '12px 24px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+          background: actionMsg.type === 'success' ? '#0A0A0A' : '#B11F39',
+          color: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          animation: 'fadeIn 0.2s ease',
+        }}>
+          {actionMsg.text}
+          <button onClick={() => setActionMsg(null)} style={{
+            marginLeft: 16, background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)',
+            cursor: 'pointer', fontSize: 14, fontWeight: 700, padding: 0,
+          }}>x</button>
+        </div>
+      )}
+
       {/* 직원 등록 모달 */}
       {showCreate && (
         <div style={s.overlay}>
