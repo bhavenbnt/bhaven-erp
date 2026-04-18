@@ -68,55 +68,45 @@ export default function Profile() {
           <span style={s.cardTitle}>내 정보</span>
         </div>
 
-        <div style={s.row2}>
-          <div style={s.fieldGroup}>
-            <label style={s.label}>업체명</label>
-            <input style={s.input} value={info.company_name}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInfo({ ...info, company_name: e.target.value })} />
-          </div>
-          <div style={s.fieldGroup}>
-            <label style={s.label}>담당자명</label>
-            <input style={s.input} value={info.name}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInfo({ ...info, name: e.target.value })} />
-          </div>
+        <div style={s.fieldGroup}>
+          <label style={s.label}>업체명</label>
+          <input style={s.input} value={info.company_name}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInfo({ ...info, company_name: e.target.value })} />
         </div>
-        <div style={s.row2}>
-          <div style={s.fieldGroup}>
-            <label style={s.label}>연락처</label>
-            <input style={s.input} value={info.contact_info} placeholder="010-0000-0000"
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInfo({ ...info, contact_info: e.target.value })} />
-          </div>
-          <div style={s.fieldGroup}>
-            <label style={s.label}>이메일 <span style={{ color: '#CCC', fontWeight: 400 }}>(변경 불가)</span></label>
-            <div style={s.readonlyField}>{info.email || '-'}</div>
-          </div>
+        <div style={s.fieldGroup}>
+          <label style={s.label}>담당자명</label>
+          <input style={s.input} value={info.name}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInfo({ ...info, name: e.target.value })} />
+        </div>
+        <div style={s.fieldGroup}>
+          <label style={s.label}>연락처</label>
+          <input style={s.input} value={info.contact_info} placeholder="010-0000-0000"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInfo({ ...info, contact_info: e.target.value })} />
+        </div>
+        <div style={s.fieldGroup}>
+          <label style={s.label}>이메일 <span style={{ color: '#CCC', fontWeight: 400 }}>(변경 불가)</span></label>
+          <div style={s.readonlyField}>{info.email || '-'}</div>
         </div>
 
         <div style={s.divider} />
         <div style={s.sectionLabel}>비밀번호 변경</div>
 
-        <div style={s.row2}>
-          <div style={s.fieldGroup}>
-            <label style={s.label}>현재 비밀번호</label>
-            <input style={s.input} type="password" placeholder="현재 비밀번호 입력"
-              value={pw.current} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPw({ ...pw, current: e.target.value })} />
-          </div>
-          <div style={s.fieldGroup}>
-            <label style={s.label}>새 비밀번호</label>
-            <input style={s.input} type="password" placeholder="8자 이상, 영문+숫자"
-              value={pw.next} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPw({ ...pw, next: e.target.value })} />
-          </div>
+        <div style={s.fieldGroup}>
+          <label style={s.label}>현재 비밀번호</label>
+          <input style={s.input} type="password" placeholder="현재 비밀번호 입력"
+            value={pw.current} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPw({ ...pw, current: e.target.value })} />
         </div>
-        <div style={s.row2}>
-          <div style={s.fieldGroup}>
-            <label style={s.label}>새 비밀번호 확인</label>
-            <input style={s.input} type="password" placeholder="다시 입력"
-              value={pw.confirm} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPw({ ...pw, confirm: e.target.value })} />
-          </div>
-          <div style={s.fieldGroup}>
-            <span style={s.pwHint}>변경하지 않으려면 비워두세요</span>
-          </div>
+        <div style={s.fieldGroup}>
+          <label style={s.label}>새 비밀번호</label>
+          <input style={s.input} type="password" placeholder="8자 이상, 영문+숫자"
+            value={pw.next} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPw({ ...pw, next: e.target.value })} />
         </div>
+        <div style={s.fieldGroup}>
+          <label style={s.label}>새 비밀번호 확인</label>
+          <input style={s.input} type="password" placeholder="다시 입력"
+            value={pw.confirm} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPw({ ...pw, confirm: e.target.value })} />
+        </div>
+        <span style={s.pwHint}>변경하지 않으려면 비워두세요</span>
       </div>
 
       {/* 메시지 + 저장 */}
@@ -158,14 +148,14 @@ const s: Record<string, React.CSSProperties> = {
 
   fieldGroup: { display: 'flex', flexDirection: 'column', gap: 6 },
   label: { fontSize: 11, fontWeight: 600, color: '#888' },
-  readonlyField: { padding: '10px 14px', borderRadius: 8, fontSize: 13, color: '#0A0A0A', fontWeight: 500, background: '#F5F5F5', border: '1px solid #F0F0F0' },
-  input: { padding: '10px 14px', border: '1px solid #EEEEEE', borderRadius: 8, fontSize: 13, outline: 'none', color: '#0A0A0A', background: '#FAFAFA', height: 40 },
+  readonlyField: { padding: '10px 14px', borderRadius: 8, fontSize: 13, color: '#0A0A0A', fontWeight: 500, background: '#F5F5F5', border: '1px solid #F0F0F0', maxWidth: 360 },
+  input: { padding: '10px 14px', border: '1px solid #EEEEEE', borderRadius: 8, fontSize: 13, outline: 'none', color: '#0A0A0A', background: '#FAFAFA', height: 40, maxWidth: 360 },
   pwHint: { fontSize: 11, color: '#CCC' },
 
-  msgBox: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, borderWidth: 1, borderStyle: 'solid', marginTop: 10, marginBottom: 10 },
+  msgBox: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, borderWidth: 1, borderStyle: 'solid', marginTop: 14 },
   saveBtn: {
-    padding: '12px 32px', background: '#B11F39', color: '#fff',
-    border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+    marginTop: 8, padding: '11px 28px', background: '#B11F39', color: '#fff',
+    border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
     boxShadow: '0 1px 3px rgba(177,31,57,0.25)',
   },
 };
