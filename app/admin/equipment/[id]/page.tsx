@@ -200,6 +200,7 @@ const s = {
   card: { background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column' as const, gap: 14 },
   cardHeader: { display: 'flex', alignItems: 'center', gap: 8 },
   cardDot: { width: 4, height: 18, borderRadius: 2, background: '#B11F39' },
+  divider: { height: 1, background: '#F0F0F0', margin: '8px 0' },
   cardTitle: { fontSize: 14, fontWeight: 700, color: '#0A0A0A', letterSpacing: -0.2 },
   infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 },
   infoItem: { display: 'flex', flexDirection: 'column' as const, gap: 3, padding: '10px 0', borderBottom: '1px solid #F8F8F8' },
