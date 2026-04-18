@@ -62,7 +62,6 @@ export default function Profile() {
       action={<div style={s.topBar}><h1 style={s.pageTitle}>프로필 설정</h1></div>}
     >
       {/* 프로필 카드 */}
-      <div style={{ maxWidth: 720 }}>
       <div style={s.profileCard}>
         <div style={s.profileTop}>
           <div style={s.avatar}>{info.name?.[0]?.toUpperCase() || info.email?.[0]?.toUpperCase()}</div>
@@ -141,7 +140,6 @@ export default function Profile() {
           {saving ? '저장 중...' : '변경사항 저장'}
         </button>
       </div>
-      </div>
     </Layout>
   );
 }
@@ -173,8 +171,8 @@ const s: Record<string, React.CSSProperties> = {
   row3: { display: 'flex', gap: 12 },
   fieldGroup: { display: 'flex', flexDirection: 'column', gap: 6, flex: 1 },
   label: { fontSize: 11, fontWeight: 600, color: '#888' },
-  readonlyField: { padding: '10px 14px', borderRadius: 8, fontSize: 13, color: '#0A0A0A', fontWeight: 500, background: '#F5F5F5', border: '1px solid #F0F0F0' },
-  input: { padding: '10px 14px', border: '1px solid #EEEEEE', borderRadius: 8, fontSize: 13, outline: 'none', color: '#0A0A0A', background: '#FAFAFA', height: 40 },
+  readonlyField: { padding: '10px 14px', borderRadius: 8, fontSize: 13, color: '#0A0A0A', fontWeight: 500, background: '#F5F5F5', border: '1px solid #F0F0F0', maxWidth: 320 },
+  input: { padding: '10px 14px', border: '1px solid #EEEEEE', borderRadius: 8, fontSize: 13, outline: 'none', color: '#0A0A0A', background: '#FAFAFA', height: 40, maxWidth: 320 },
   pwHint: { fontSize: 11, color: '#CCC' },
   msgBox: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, borderWidth: 1, borderStyle: 'solid' },
   saveBtn: {
