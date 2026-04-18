@@ -74,7 +74,13 @@ export default function AdminCalendar() {
     return reservations.filter((r: any) => {
       if (!r.scheduled_date?.startsWith(d)) return false;
       if (r.status === 'CANCELLED') return false;
-      if (selectedType !== 'all' && r.equipment?.type !== selectedType) return false;
+      if (selectedType !== 'all') {
+        if (selectedType === 'custom') {
+          if (['small', 'medium', 'large'].includes(r.equipment?.type)) return false;
+        } else {
+          if (r.equipment?.type !== selectedType) return false;
+        }
+      }
       return true;
     });
   };
@@ -168,12 +174,15 @@ export default function AdminCalendar() {
         </div>
         <div style={s.filterRow}>
           <div style={s.typeFilter}>
-            {['all', 'small', 'medium', 'large'].map(t => (
-              <button key={t} style={{ ...s.typeSeg, ...(selectedType === t ? s.typeSegOn : {}) }}
-                onClick={() => setSelectedType(t)}>
-                {{ all: '전체', small: '소형', medium: '중형', large: '대형' }[t]}
-              </button>
-            ))}
+            {Icons.settings({ size: 13, color: '#999' })}
+            <select style={s.typeSelect} value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}>
+              <option value="all">전체 기기</option>
+              <option value="small">소형</option>
+              <option value="medium">중형</option>
+              <option value="large">대형</option>
+              <option value="custom">직접 입력</option>
+            </select>
           </div>
           <div style={s.legend}>
             <span style={s.legendItem}><span style={{ ...s.legendDot, background: '#B11F39' }} />대기</span>
@@ -307,9 +316,11 @@ const s: Record<string, React.CSSProperties> = {
     background: '#F5F5F5', border: '1px solid #EEEEEE', borderRadius: 6, cursor: 'pointer', marginLeft: 4,
   },
   filterRow: { display: 'flex', alignItems: 'center', gap: 14 },
-  typeFilter: { display: 'inline-flex', background: '#F0F0F0', borderRadius: 8, padding: 2, height: 34, alignItems: 'center' },
-  typeSeg: { padding: '0 14px', height: 30, fontSize: 12, fontWeight: 600, color: '#888', background: 'transparent', border: 'none', borderRadius: 6, cursor: 'pointer' },
-  typeSegOn: { background: '#0A0A0A', color: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+  typeFilter: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '0 12px', height: 34, background: '#fff', borderRadius: 8, border: '1px solid #EEEEEE',
+  },
+  typeSelect: { border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: '#333', cursor: 'pointer' },
   legend: { display: 'flex', gap: 12 },
   legendItem: { display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#999', fontWeight: 500 },
   legendDot: { width: 6, height: 6, borderRadius: '50%' },
