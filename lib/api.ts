@@ -13,8 +13,8 @@ async function request(method: string, path: string, body?: unknown) {
   });
   const data = await res.json();
   if (!res.ok) {
-    // 토큰 만료 시 자동 로그아웃
-    if (res.status === 401 && typeof window !== 'undefined') {
+    // 토큰 만료 시 자동 로그아웃 (로그인/회원가입 요청은 제외)
+    if (res.status === 401 && typeof window !== 'undefined' && !path.startsWith('/auth/')) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
