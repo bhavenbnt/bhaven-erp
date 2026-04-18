@@ -148,7 +148,7 @@ const s: Record<string, React.CSSProperties> = {
   topBar: { display: 'flex', alignItems: 'center', width: '100%' },
   pageTitle: { fontSize: 18, fontWeight: 700, color: '#0A0A0A', margin: 0, letterSpacing: -0.3 },
 
-  profileCard: { background: '#0A0A0A', borderRadius: 12, padding: '20px 22px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: 14 },
+  profileCard: { background: '#0A0A0A', borderRadius: 12, padding: '20px 22px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: 14, maxWidth: 680 },
   profileTop: { display: 'flex', alignItems: 'center', gap: 14 },
   avatar: { width: 48, height: 48, borderRadius: '50%', background: 'rgba(177,31,57,0.8)', color: '#fff', fontWeight: 700, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   profileInfo: { flex: 1 },
@@ -159,7 +159,7 @@ const s: Record<string, React.CSSProperties> = {
   card: {
     background: '#fff', borderRadius: 12, padding: '22px 24px',
     border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-    display: 'flex', flexDirection: 'column', gap: 16,
+    display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 680,
   },
   cardHeader: { display: 'flex', alignItems: 'center', gap: 8 },
   cardDot: { width: 4, height: 18, borderRadius: 2, background: '#B11F39' },
@@ -171,8 +171,8 @@ const s: Record<string, React.CSSProperties> = {
   row3: { display: 'flex', gap: 12 },
   fieldGroup: { display: 'flex', flexDirection: 'column', gap: 6, flex: 1 },
   label: { fontSize: 11, fontWeight: 600, color: '#888' },
-  readonlyField: { padding: '10px 14px', borderRadius: 8, fontSize: 13, color: '#0A0A0A', fontWeight: 500, background: '#F5F5F5', border: '1px solid #F0F0F0', maxWidth: 320 },
-  input: { padding: '10px 14px', border: '1px solid #EEEEEE', borderRadius: 8, fontSize: 13, outline: 'none', color: '#0A0A0A', background: '#FAFAFA', height: 40, maxWidth: 320 },
+  readonlyField: { padding: '10px 14px', borderRadius: 8, fontSize: 13, color: '#0A0A0A', fontWeight: 500, background: '#F5F5F5', border: '1px solid #F0F0F0' },
+  input: { padding: '10px 14px', border: '1px solid #EEEEEE', borderRadius: 8, fontSize: 13, outline: 'none', color: '#0A0A0A', background: '#FAFAFA', height: 40 },
   pwHint: { fontSize: 11, color: '#CCC' },
   msgBox: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, borderWidth: 1, borderStyle: 'solid' },
   saveBtn: {
