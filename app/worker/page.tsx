@@ -5,6 +5,7 @@ import Layout from '@/components/Layout';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { Icons } from '@/components/icons';
+import DatePicker from '@/components/DatePicker';
 
 const STATUS_LABEL: Record<string, string> = { PENDING: '대기', CONFIRMED: '확정', IN_PROGRESS: '생산중', COMPLETED: '완료', CANCELLED: '취소' };
 const STATUS_STYLE: Record<string, { color: string; bg: string; border: string }> = {
@@ -20,12 +21,14 @@ const PAGE_SIZE = 8;
 export default function WorkerDashboard() {
   const router = useRouter();
   const { user } = useAuth();
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [todayList, setTodayList] = useState<any[]>([]);
   const [tomorrowCount, setTomorrowCount] = useState(0);
   const [weekData, setWeekData] = useState<{ date: Date; count: number; kg: number }[]>([]);
   const [page, setPage] = useState(1);
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
+  const isToday = selectedDate === todayStr;
 
   useEffect(() => {
     if (!user) router.replace('/login');
@@ -33,8 +36,8 @@ export default function WorkerDashboard() {
   }, [user, router]);
 
   const load = () => {
-    // 오늘
-    api.get(`/reservations?date_from=${todayStr}&date_to=${todayStr}`)
+    // 선택 날짜
+    api.get(`/reservations?date_from=${selectedDate}&date_to=${selectedDate}`)
       .then(({ data }: any) => setTodayList((data.data || []).filter((r: any) => r.status !== 'CANCELLED')))
       .catch(() => {});
 
@@ -64,7 +67,7 @@ export default function WorkerDashboard() {
       }).catch(() => {});
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); setPage(1); }, [selectedDate]);
 
   if (!user) return null;
 
@@ -74,7 +77,8 @@ export default function WorkerDashboard() {
   const totalKg = todayList.reduce((sum, r) => sum + (r.kg_amount || 0), 0);
   const totalPages = Math.max(1, Math.ceil(todayList.length / PAGE_SIZE));
   const paginated = todayList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const dateStr = today.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+  const selectedD = new Date(selectedDate + 'T00:00:00');
+  const dateStr = selectedD.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   const maxWeekKg = Math.max(...weekData.map(d => d.kg), 1);
 
   const handleStatus = async (id: number, status: string) => {
@@ -89,7 +93,11 @@ export default function WorkerDashboard() {
         <div style={s.topBar}>
           <div style={s.topLeft}>
             <h1 style={s.pageTitle}>대시보드</h1>
-            <span style={s.dateBadge}>{Icons.calendar({ size: 12, color: '#999' })}<span>{dateStr}</span></span>
+            {isToday && <span style={s.todayTag}>오늘</span>}
+          </div>
+          <div style={s.topRight}>
+            <DatePicker value={selectedDate} onChange={setSelectedDate} minDate="2026-01-01" maxDate="2027-12-31" align="right" />
+            {!isToday && <button style={s.todayBtn} onClick={() => setSelectedDate(todayStr)}>오늘</button>}
           </div>
         </div>
       }
@@ -122,10 +130,10 @@ export default function WorkerDashboard() {
       </div>
 
       <div style={s.bottomRow}>
-        {/* 오늘 생산 테이블 */}
+        {/* 생산 테이블 */}
         <div style={s.tableCard}>
           <div style={s.tableHeader}>
-            <span style={s.tableTitle}>오늘의 생산</span>
+            <span style={s.tableTitle}>{dateStr}</span>
             <span style={s.countBadge}>{total}건</span>
           </div>
           <div style={s.tableWrap}>
@@ -223,9 +231,11 @@ export default function WorkerDashboard() {
 
 const s: Record<string, React.CSSProperties> = {
   topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
-  topLeft: { display: 'flex', alignItems: 'center', gap: 14 },
+  topLeft: { display: 'flex', alignItems: 'center', gap: 10 },
+  topRight: { display: 'flex', alignItems: 'center', gap: 8 },
   pageTitle: { fontSize: 18, fontWeight: 700, color: '#0A0A0A', margin: 0, letterSpacing: -0.3 },
-  dateBadge: { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#999', fontWeight: 500, padding: '4px 10px', borderRadius: 20, background: '#F5F5F5' },
+  todayTag: { fontSize: 11, fontWeight: 600, color: '#B11F39', background: '#FDF2F4', padding: '3px 10px', borderRadius: 20, border: '1px solid #F5D0D6' },
+  todayBtn: { padding: '6px 14px', fontSize: 12, fontWeight: 600, color: '#666', background: '#F5F5F5', border: '1px solid #EEEEEE', borderRadius: 6, cursor: 'pointer' },
 
   statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 },
   statCard: { background: '#fff', borderRadius: 12, padding: '18px 20px', border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', minHeight: 120 },
