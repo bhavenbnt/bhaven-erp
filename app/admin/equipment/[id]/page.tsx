@@ -68,38 +68,55 @@ export default function EquipmentDetail() {
   const totalLiter = history.reduce((sum: number, r: any) => sum + parseFloat(r.expected_output_liter || 0), 0);
 
   return (
-    <Layout title="기기 상세" action={
-      <button style={s.backBtn} onClick={() => router.push('/admin/equipment')}>← 기기 목록</button>
-    }>
-      <div style={s.grid}>
-        <div style={s.card}>
-          <div style={s.cardTitle}>기기 정보</div>
-          <div style={s.divider} />
-          {infoRows.map(r => (
-            <div key={r.label} style={s.infoRow}>
-              <span style={s.infoLabel}>{r.label}</span>
-              <span style={s.infoValue}>{r.value}</span>
-            </div>
-          ))}
-        </div>
-        <div style={s.card}>
-          <div style={s.cardTitle}>상태 변경</div>
-          <div style={s.divider} />
-          <div style={s.field}><label style={s.label}>기기명</label>
-            <input style={s.input} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-          <div style={s.field}><label style={s.label}>상태</label>
-            <select style={s.input} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-              <option value="NORMAL">정상</option>
-              <option value="MAINTENANCE">점검중</option>
-              <option value="BROKEN">고장</option>
-            </select></div>
-          <div style={{ padding: '8px 12px', background: '#FEF3C7', borderRadius: 6, fontSize: 12, color: '#92400E' }}>
-            ⚠️ 용량(CAP) 및 분할 수는 명세서 정책상 수정 불가합니다. 변경이 필요한 경우 기기를 삭제 후 재등록하세요.
+    <Layout
+      title=""
+      action={
+        <div style={s.topBar}>
+          <div style={s.topLeft}>
+            <button style={s.backBtn} onClick={() => router.push('/admin/equipment')}>
+              <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+            <h1 style={s.pageTitle}>{equipment.name}</h1>
+            <span style={s.codeBadge}>{equipment.equipment_code}</span>
           </div>
-          <button style={s.saveBtn} onClick={save} disabled={loading}>{loading ? '저장 중...' : '저장'}</button>
-          {success && <p style={s.success}>저장되었습니다.</p>}
-          {error && <p style={s.error}>{error}</p>}
-          <div style={{ height: 1, background: '#F0F0F0', margin: '8px 0' }} />
+        </div>
+      }
+    >
+      <div style={s.grid}>
+        {/* 좌측: 기기 정보 */}
+        <div style={s.leftCol}>
+          <div style={s.card}>
+            <div style={s.cardHeader}><div style={s.cardDot} /><span style={s.cardTitle}>기기 정보</span></div>
+            <div style={s.infoGrid}>
+              {infoRows.map(r => (
+                <div key={r.label} style={s.infoItem}>
+                  <span style={s.infoLabel}>{r.label}</span>
+                  <span style={s.infoValue}>{r.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 우측: 상태 변경 + 삭제 */}
+        <div style={s.rightCol}>
+          <div style={s.actionCard}>
+            <div style={s.actionHeader}>상태 변경</div>
+            <div style={s.field}><label style={s.label}>기기명</label>
+              <input style={s.input} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+            <div style={s.field}><label style={s.label}>상태</label>
+              <select style={s.input} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+                <option value="NORMAL">정상</option>
+                <option value="MAINTENANCE">점검중</option>
+                <option value="BROKEN">고장</option>
+              </select></div>
+            <div style={s.notice}>용량 및 분할 수는 수정 불가. 변경 필요 시 삭제 후 재등록.</div>
+            <button style={s.saveBtn} onClick={save} disabled={loading}>{loading ? '저장 중...' : '저장'}</button>
+            {success && <p style={s.success}>저장되었습니다.</p>}
+            {error && <p style={s.error}>{error}</p>}
+          </div>
+
+          {/* 삭제 — 별도 분리 */}
           {!deleteConfirm ? (
             <button style={s.deleteBtn} onClick={() => setDeleteConfirm(true)}>기기 삭제</button>
           ) : (
@@ -169,25 +186,41 @@ export default function EquipmentDetail() {
 }
 
 const s = {
-  backBtn: { padding: '7px 14px', background: 'transparent', border: '1px solid #e0e0e0', borderRadius: 6, fontSize: 13, color: '#666', cursor: 'pointer' },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 280px', gap: 20 },
-  card: { background: '#fff', borderRadius: 10, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' as const, gap: 12, alignSelf: 'flex-start' as const },
-  cardTitle: { fontSize: 14, fontWeight: 600, color: '#1a1a1a' },
-  divider: { height: 1, background: '#F3F4F6' },
-  infoRow: { display: 'flex', padding: '8px 0', borderBottom: '1px solid #F5F5F5' },
-  infoLabel: { width: 80, fontSize: 13, color: '#888', flexShrink: 0 },
-  infoValue: { fontSize: 13, color: '#1a1a1a', fontWeight: 500 },
-  field: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
-  label: { fontSize: 13, fontWeight: 500, color: '#374151' },
-  input: { padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 13, outline: 'none', background: '#fff' },
-  saveBtn: { padding: 12, background: '#B11F39', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-  success: { color: '#10B981', fontSize: 13, margin: 0 },
-  error: { color: '#B11F39', fontSize: 13, margin: 0 },
-  deleteBtn: { width: '100%', padding: 10, background: '#fff', color: '#B11F39', border: '1px solid #F5D0D6', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
-  deleteConfirmBox: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#FDF2F4', borderRadius: 8, border: '1px solid #F5D0D6' },
-  deleteConfirmText: { fontSize: 13, fontWeight: 600, color: '#B11F39' },
-  deleteCancel: { padding: '6px 14px', background: '#fff', color: '#666', border: '1px solid #EEEEEE', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
-  deleteConfirmBtn: { padding: '6px 14px', background: '#B11F39', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  // 상단
+  topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
+  topLeft: { display: 'flex', alignItems: 'center', gap: 10 },
+  backBtn: { width: 30, height: 30, border: '1px solid #EEEEEE', background: '#fff', borderRadius: 7, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' },
+  pageTitle: { fontSize: 18, fontWeight: 700, color: '#0A0A0A', margin: 0, letterSpacing: -0.3 },
+  codeBadge: { fontSize: 12, fontWeight: 600, color: '#999', fontFamily: "'Space Grotesk', monospace" },
+  // 레이아웃
+  grid: { display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, alignItems: 'start' as const },
+  leftCol: { display: 'flex', flexDirection: 'column' as const, gap: 14 },
+  rightCol: { display: 'flex', flexDirection: 'column' as const, gap: 12 },
+  // 정보 카드
+  card: { background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column' as const, gap: 14 },
+  cardHeader: { display: 'flex', alignItems: 'center', gap: 8 },
+  cardDot: { width: 4, height: 18, borderRadius: 2, background: '#B11F39' },
+  cardTitle: { fontSize: 14, fontWeight: 700, color: '#0A0A0A', letterSpacing: -0.2 },
+  infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 },
+  infoItem: { display: 'flex', flexDirection: 'column' as const, gap: 3, padding: '10px 0', borderBottom: '1px solid #F8F8F8' },
+  infoLabel: { fontSize: 11, color: '#AAA', fontWeight: 500 },
+  infoValue: { fontSize: 13, color: '#333', fontWeight: 500 },
+  // 액션 카드
+  actionCard: { background: '#FCFCFC', borderRadius: 10, padding: '16px 18px', border: '1px solid #F0F0F0', display: 'flex', flexDirection: 'column' as const, gap: 10 },
+  actionHeader: { fontSize: 12, fontWeight: 600, color: '#888' },
+  field: { display: 'flex', flexDirection: 'column' as const, gap: 5 },
+  label: { fontSize: 11, fontWeight: 600, color: '#888' },
+  input: { padding: '8px 12px', border: '1px solid #EEEEEE', borderRadius: 7, fontSize: 13, outline: 'none', color: '#0A0A0A', background: '#fff' },
+  notice: { fontSize: 11, color: '#BBB', lineHeight: 1.5 },
+  saveBtn: { width: '100%', padding: '10px 0', background: '#0A0A0A', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  success: { color: '#555', fontSize: 12, margin: 0 },
+  error: { color: '#B11F39', fontSize: 12, margin: 0 },
+  // 삭제
+  deleteBtn: { width: '100%', padding: '10px 0', background: '#fff', color: '#999', border: '1px solid #EEEEEE', borderRadius: 7, fontSize: 12, cursor: 'pointer' },
+  deleteConfirmBox: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#FDF2F4', borderRadius: 8, border: '1px solid #F5D0D6' },
+  deleteConfirmText: { fontSize: 12, fontWeight: 600, color: '#B11F39' },
+  deleteCancel: { padding: '6px 14px', background: '#fff', color: '#666', border: '1px solid #EEEEEE', borderRadius: 6, fontSize: 11, cursor: 'pointer' },
+  deleteConfirmBtn: { padding: '6px 14px', background: '#B11F39', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' },
   historyHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   statChips: { display: 'flex', gap: 8 },
   chip: { padding: '3px 10px', background: '#F3F4F6', borderRadius: 20, fontSize: 12, color: '#374151', fontWeight: 500 },
