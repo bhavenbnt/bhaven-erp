@@ -79,7 +79,6 @@ export default function WorkerDashboard() {
   const paginated = todayList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selectedD = new Date(selectedDate + 'T00:00:00');
   const dateStr = selectedD.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-  const maxWeekKg = Math.max(...weekData.map(d => d.kg), 1);
 
   const handleStatus = async (id: number, status: string) => {
     await api.put(`/reservations/${id}/status`, { status }).catch(() => {});
@@ -194,27 +193,35 @@ export default function WorkerDashboard() {
           </div>
         </div>
 
-        {/* 이번 주 미리보기 */}
+        {/* 이번 주 */}
         <div style={s.weekCard}>
           <div style={s.weekHeader}>
             {Icons.calendar({ size: 13, color: '#999' })}
             <span style={s.weekTitle}>이번 주</span>
           </div>
-          <div style={s.weekGrid}>
+          <div style={s.weekList}>
             {weekData.map((d, i) => {
               const ds = d.date.toISOString().split('T')[0];
               const isT = ds === todayStr;
-              const barH = d.kg > 0 ? Math.max((d.kg / maxWeekKg) * 48, 4) : 0;
+              const isSel = ds === selectedDate;
               return (
-                <div key={i} style={{ ...s.weekDay, cursor: d.count > 0 ? 'pointer' : 'default' }}
-                  onClick={() => d.count > 0 && router.push(`/worker/production/${ds}`)}>
-                  <div style={s.weekBarWrap}>
-                    <div style={{ ...s.weekBar, height: barH, background: isT ? '#B11F39' : '#E0E0E0' }} />
+                <div key={i}
+                  style={{ ...s.weekRow, ...(isSel ? s.weekRowSelected : {}), cursor: d.count > 0 ? 'pointer' : 'default' }}
+                  onClick={() => d.count > 0 ? setSelectedDate(ds) : null}>
+                  <div style={s.weekRowLeft}>
+                    <span style={{ ...s.weekDayLabel, color: isT ? '#B11F39' : i === 0 ? '#B11F39' : '#555' }}>{DAY_KO[i]}</span>
+                    <span style={{ ...s.weekDateLabel, color: isSel ? '#0A0A0A' : '#999' }}>{d.date.getMonth() + 1}/{d.date.getDate()}</span>
                   </div>
-                  <span style={{ ...s.weekKg, color: d.kg > 0 ? '#555' : '#DDD' }}>{d.kg > 0 ? `${d.kg}` : '-'}</span>
-                  <span style={{ ...s.weekDayLabel, color: isT ? '#B11F39' : i === 0 ? '#B11F39' : '#999', fontWeight: isT ? 700 : 500 }}>{DAY_KO[i]}</span>
-                  <span style={{ ...s.weekDate, color: isT ? '#0A0A0A' : '#BBB', fontWeight: isT ? 700 : 400 }}>{d.date.getDate()}</span>
-                  {d.count > 0 && <span style={{ ...s.weekCount, background: isT ? '#B11F39' : '#F0F0F0', color: isT ? '#fff' : '#888' }}>{d.count}</span>}
+                  <div style={s.weekRowRight}>
+                    {d.count > 0 ? (
+                      <>
+                        <span style={s.weekRowCount}>{d.count}건</span>
+                        <span style={s.weekRowKg}>{d.kg}kg</span>
+                      </>
+                    ) : (
+                      <span style={s.weekRowEmpty}>-</span>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -280,18 +287,23 @@ const s: Record<string, React.CSSProperties> = {
   weekCard: {
     background: '#fff', borderRadius: 12, padding: '16px 18px',
     border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-    display: 'flex', flexDirection: 'column', gap: 14,
+    display: 'flex', flexDirection: 'column', gap: 12,
   },
   weekHeader: { display: 'flex', alignItems: 'center', gap: 6 },
   weekTitle: { fontSize: 13, fontWeight: 700, color: '#0A0A0A' },
-  weekGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 },
-  weekDay: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 },
-  weekBarWrap: { height: 48, display: 'flex', alignItems: 'flex-end' },
-  weekBar: { width: 16, borderRadius: 3 },
-  weekKg: { fontSize: 9, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif" },
-  weekDayLabel: { fontSize: 10 },
-  weekDate: { fontSize: 12, fontFamily: "'Space Grotesk', sans-serif" },
-  weekCount: { fontSize: 9, fontWeight: 700, borderRadius: 8, padding: '1px 5px', minWidth: 16, textAlign: 'center' },
+  weekList: { display: 'flex', flexDirection: 'column', gap: 2 },
+  weekRow: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '8px 10px', borderRadius: 6, transition: 'background 0.1s',
+  },
+  weekRowSelected: { background: '#FDF8F9', border: '1px solid #F5D0D6' },
+  weekRowLeft: { display: 'flex', alignItems: 'center', gap: 8 },
+  weekDayLabel: { fontSize: 12, fontWeight: 600, width: 16 },
+  weekDateLabel: { fontSize: 12, fontFamily: "'Space Grotesk', sans-serif" },
+  weekRowRight: { display: 'flex', alignItems: 'center', gap: 8 },
+  weekRowCount: { fontSize: 12, fontWeight: 600, color: '#0A0A0A' },
+  weekRowKg: { fontSize: 11, color: '#999', fontFamily: "'Space Grotesk', sans-serif" },
+  weekRowEmpty: { fontSize: 12, color: '#DDD' },
   historyLink: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
     padding: '8px 0', background: '#FAFAFA', border: '1px solid #F0F0F0', borderRadius: 6,
