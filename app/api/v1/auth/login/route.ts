@@ -10,18 +10,20 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: '이메일과 비밀번호를 입력해주세요.' }, { status: 400 });
     }
 
-    // Supabase Auth REST API로 직접 인증 (JS 클라이언트 세션 이슈 회피)
-    const authRes = await fetch(
-      `${process.env.SUPABASE_URL}/auth/v1/token?grant_type=password`,
-      {
-        method: 'POST',
-        headers: {
-          'apikey': process.env.SUPABASE_ANON_KEY!,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      }
-    );
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_ANON_KEY;
+
+    if (!url || !key) {
+      return Response.json({ error: '서버 설정 오류입니다.' }, { status: 500 });
+    }
+
+    // Supabase Auth REST API 직접 호출
+    const authRes = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+      cache: 'no-store',
+    });
 
     if (!authRes.ok) {
       return Response.json({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' }, { status: 401 });
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (userError || !user) {
-      return Response.json({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' }, { status: 401 });
+      return Response.json({ error: '등록되지 않은 계정입니다.' }, { status: 401 });
     }
     if (user.deleted_at) {
       return Response.json({ error: '삭제된 계정입니다. 관리자에게 문의하세요.' }, { status: 403 });
@@ -64,8 +66,8 @@ export async function POST(req: NextRequest) {
         },
       },
     });
-  } catch (err) {
-    console.error(err);
+  } catch (err: any) {
+    console.error('LOGIN ERROR:', err?.message || err);
     return Response.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

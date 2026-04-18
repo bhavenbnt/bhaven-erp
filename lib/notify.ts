@@ -26,16 +26,16 @@ export async function notifyAdminsNewReservation(reservation_id: number, company
     .eq('role', 'admin')
     .eq('is_active', true);
 
-  if (!admins) return;
-  await Promise.all(admins.map((a) =>
-    createNotification({
+  if (!admins?.length) return;
+  await supabase.from('notifications').insert(
+    admins.map((a) => ({
       user_id: a.user_id,
       title: '신규 예약 신청',
       message: `${company_name}님의 ${scheduled_date} 생산 예약이 접수되었습니다.`,
       noti_type: 'reservation',
       reservation_id,
-    })
-  ));
+    }))
+  );
 }
 
 // 예약 승인 → 고객에게 알림
@@ -68,14 +68,14 @@ export async function notifyWorkersScheduleChange(message: string, reservation_i
     .eq('role', 'worker')
     .eq('is_active', true);
 
-  if (!workers) return;
-  await Promise.all(workers.map((w) =>
-    createNotification({
+  if (!workers?.length) return;
+  await supabase.from('notifications').insert(
+    workers.map((w) => ({
       user_id: w.user_id,
       title: '일정 변경 알림',
       message,
       noti_type: 'schedule',
-      reservation_id,
-    })
-  ));
+      reservation_id: reservation_id ?? null,
+    }))
+  );
 }

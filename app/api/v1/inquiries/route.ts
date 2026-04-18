@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabase
       .from('inquiries')
-      .select('*, users(name, company_name)')
+      .select('inquiry_id, message, status, created_at, user_id, users(name, company_name)')
       .order('created_at', { ascending: false });
 
     if (error) throw error;

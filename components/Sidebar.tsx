@@ -81,7 +81,7 @@ export default function Sidebar() {
       } catch {}
     };
     fetchNotis();
-    const interval = setInterval(fetchNotis, 30000);
+    const interval = setInterval(fetchNotis, 60000);
     return () => clearInterval(interval);
   }, [user]);
 

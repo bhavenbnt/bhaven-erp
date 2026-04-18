@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
     let query = supabase
       .from('users')
-      .select('*')
+      .select('user_id, name, email, role, status, is_super, is_approved, company_name, contact_info, created_at, deleted_at')
       .is('deleted_at', null);
 
     if (role) query = query.eq('role', role);

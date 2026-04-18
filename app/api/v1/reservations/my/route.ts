@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
     let query = supabase
       .from('reservations')
-      .select('*, equipment(name), products(product_name, product_type, container_size, yield_rate)')
+      .select('reservation_id, status, scheduled_date, kg_amount, expected_output_liter, equipment_id, product_id, created_at, equipment(name), products(product_name, product_type, container_size, yield_rate)')
       .eq('user_id', user.user_id)
       .order('scheduled_date', { ascending: false });
 

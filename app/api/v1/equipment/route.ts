@@ -10,14 +10,16 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const type = searchParams.get('type');
 
-    let query = supabase.from('equipment').select('*').order('name', { ascending: true });
+    let query = supabase.from('equipment').select('equipment_id, name, equipment_code, type, status, min_capacity, max_capacity, divisions').order('name', { ascending: true });
 
     if (type) query = query.eq('type', type);
 
     const { data, error } = await query;
     if (error) throw error;
 
-    return Response.json({ status: 'success', data });
+    return new Response(JSON.stringify({ status: 'success', data }), {
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' },
+    });
   } catch (err) {
     console.error(err);
     return Response.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
