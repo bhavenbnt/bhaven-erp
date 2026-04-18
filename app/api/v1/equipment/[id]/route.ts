@@ -38,7 +38,6 @@ export async function PUT(
     if ('error' in result) return result.error;
 
     const { id } = await params;
-    // CAP(min_capacity, max_capacity, divisions)은 명세서상 수정 불가 — name, status만 허용
     const { name, status } = await req.json();
 
     const { data, error } = await supabase
@@ -53,6 +52,42 @@ export async function PUT(
     }
 
     return Response.json({ status: 'success', data });
+  } catch (err) {
+    console.error(err);
+    return Response.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const result = requireAuth(req, 'admin');
+    if ('error' in result) return result.error;
+    const { user } = result;
+
+    const { data: caller } = await supabase.from('users').select('is_super').eq('user_id', user.user_id).single();
+    if (!caller?.is_super) return Response.json({ error: '권한이 없습니다.' }, { status: 403 });
+
+    const { id } = await params;
+
+    // 진행 중인 예약 확인
+    const { data: active } = await supabase
+      .from('reservations')
+      .select('reservation_id')
+      .eq('equipment_id', id)
+      .in('status', ['PENDING', 'CONFIRMED', 'IN_PROGRESS'])
+      .limit(1);
+
+    if (active && active.length > 0) {
+      return Response.json({ error: '진행 중인 예약이 있어 삭제할 수 없습니다.' }, { status: 400 });
+    }
+
+    const { error } = await supabase.from('equipment').delete().eq('equipment_id', id);
+    if (error) throw error;
+
+    return Response.json({ status: 'success' });
   } catch (err) {
     console.error(err);
     return Response.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });

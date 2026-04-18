@@ -20,6 +20,7 @@ export default function EquipmentDetail() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (!user) router.replace('/login');
@@ -98,6 +99,26 @@ export default function EquipmentDetail() {
           <button style={s.saveBtn} onClick={save} disabled={loading}>{loading ? '저장 중...' : '저장'}</button>
           {success && <p style={s.success}>저장되었습니다.</p>}
           {error && <p style={s.error}>{error}</p>}
+          <div style={{ height: 1, background: '#F0F0F0', margin: '8px 0' }} />
+          {!deleteConfirm ? (
+            <button style={s.deleteBtn} onClick={() => setDeleteConfirm(true)}>기기 삭제</button>
+          ) : (
+            <div style={s.deleteConfirmBox}>
+              <span style={s.deleteConfirmText}>정말 삭제하시겠습니까?</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button style={s.deleteCancel} onClick={() => setDeleteConfirm(false)}>취소</button>
+                <button style={s.deleteConfirmBtn} onClick={async () => {
+                  try {
+                    await api.delete(`/equipment/${id}`);
+                    router.push('/admin/equipment');
+                  } catch (e: any) {
+                    setError(e.response?.data?.error || '삭제에 실패했습니다.');
+                    setDeleteConfirm(false);
+                  }
+                }}>삭제</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -161,7 +182,12 @@ const s = {
   input: { padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 13, outline: 'none', background: '#fff' },
   saveBtn: { padding: 12, background: '#B11F39', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   success: { color: '#10B981', fontSize: 13, margin: 0 },
-  error: { color: '#EF4444', fontSize: 13, margin: 0 },
+  error: { color: '#B11F39', fontSize: 13, margin: 0 },
+  deleteBtn: { width: '100%', padding: 10, background: '#fff', color: '#B11F39', border: '1px solid #F5D0D6', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
+  deleteConfirmBox: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#FDF2F4', borderRadius: 8, border: '1px solid #F5D0D6' },
+  deleteConfirmText: { fontSize: 13, fontWeight: 600, color: '#B11F39' },
+  deleteCancel: { padding: '6px 14px', background: '#fff', color: '#666', border: '1px solid #EEEEEE', borderRadius: 6, fontSize: 12, cursor: 'pointer' },
+  deleteConfirmBtn: { padding: '6px 14px', background: '#B11F39', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
   historyHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   statChips: { display: 'flex', gap: 8 },
   chip: { padding: '3px 10px', background: '#F3F4F6', borderRadius: 20, fontSize: 12, color: '#374151', fontWeight: 500 },
