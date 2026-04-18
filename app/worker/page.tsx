@@ -24,8 +24,9 @@ export default function WorkerDashboard() {
   const [todayList, setTodayList] = useState<any[]>([]);
   const [tomorrowCount, setTomorrowCount] = useState(0);
   const [weekData, setWeekData] = useState<{ date: Date; count: number; kg: number }[]>([]);
-  const [catPages, setCatPages] = useState<Record<string, number>>({ small: 1, medium: 1, large: 1, custom: 1 });
-  const CAT_PAGE_SIZE = 5;
+  const [equipFilter, setEquipFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 8;
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const isToday = selectedDate === todayStr;
@@ -67,7 +68,7 @@ export default function WorkerDashboard() {
       }).catch(() => {});
   };
 
-  useEffect(() => { load(); setCatPages({ small: 1, medium: 1, large: 1, custom: 1 }); }, [selectedDate]);
+  useEffect(() => { load(); setPage(1); }, [selectedDate]);
 
   if (!user) return null;
 
@@ -75,6 +76,17 @@ export default function WorkerDashboard() {
   const inProgress = todayList.filter(r => r.status === 'IN_PROGRESS').length;
   const completed = todayList.filter(r => r.status === 'COMPLETED').length;
   const totalKg = todayList.reduce((sum, r) => sum + (r.kg_amount || 0), 0);
+  const filtered = equipFilter === 'all' ? todayList : todayList.filter(r => {
+    if (equipFilter === 'custom') return !['small', 'medium', 'large'].includes(r.equipment?.type);
+    return r.equipment?.type === equipFilter;
+  });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const getTypeCount = (key: string) => key === 'all' ? todayList.length : todayList.filter(r => {
+    if (key === 'custom') return !['small', 'medium', 'large'].includes(r.equipment?.type);
+    return r.equipment?.type === key;
+  }).length;
+  const handleFilter = (key: string) => { setEquipFilter(key); setPage(1); };
   const selectedD = new Date(selectedDate + 'T00:00:00');
   const dateStr = selectedD.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
@@ -129,86 +141,81 @@ export default function WorkerDashboard() {
       <div style={s.bottomRow}>
         {/* 기기 종류별 카드 */}
         <div style={s.categoryCol}>
-          <div style={s.catGrid}>
-          {([
-            { key: 'small', label: '소형', desc: '1~10kg' },
-            { key: 'medium', label: '중형', desc: '10~20kg' },
-            { key: 'large', label: '대형', desc: '25~60kg' },
-            { key: 'custom', label: '직접 입력', desc: '사용자 정의' },
-          ]).map(cat => {
-            const items = todayList.filter(r => {
-              if (cat.key === 'custom') return !['small', 'medium', 'large'].includes(r.equipment?.type);
-              return r.equipment?.type === cat.key;
-            });
-            const catKg = items.reduce((sum: number, r: any) => sum + (r.kg_amount || 0), 0);
-            const pg = catPages[cat.key] || 1;
-            const totalPg = Math.max(1, Math.ceil(items.length / CAT_PAGE_SIZE));
-            const paged = items.slice((pg - 1) * CAT_PAGE_SIZE, pg * CAT_PAGE_SIZE);
-            return (
-              <div key={cat.key} style={s.catCard}>
-                <div style={s.catHeader}>
-                  <div style={s.catHeaderLeft}>
-                    <span style={s.catTitle}>{cat.label}</span>
-                    <span style={s.catDesc}>{cat.desc}</span>
-                  </div>
-                  <div style={s.catHeaderRight}>
-                    <span style={s.catCount}>{items.length}건</span>
-                    {catKg > 0 && <span style={s.catKg}>{catKg}kg</span>}
-                  </div>
-                </div>
-                <div style={s.catBody}>
-                  {items.length === 0 ? (
-                    <div style={s.catEmpty}>작업 없음</div>
-                  ) : (
-                    <table style={s.table}>
-                      <thead>
-                        <tr>
-                          <th style={s.th}>기기</th>
-                          <th style={s.th}>업체</th>
-                          <th style={s.th}>제품</th>
-                          <th style={s.th}>중량</th>
-                          <th style={{ ...s.th, textAlign: 'center' }}>상태</th>
-                          <th style={{ ...s.th, textAlign: 'center' }}>작업</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paged.map((r: any) => {
-                          const ss = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
-                          return (
-                            <tr key={r.reservation_id} style={s.tr}>
-                              <td style={s.tdName}>{r.equipment?.name || '-'}</td>
-                              <td style={s.td}>{r.users?.company_name || r.users?.name || '-'}</td>
-                              <td style={s.td}>{r.products?.product_name || '-'}</td>
-                              <td style={s.tdMono}>{r.kg_amount}kg</td>
-                              <td style={{ ...s.td, textAlign: 'center' }}>
-                                <span style={{ ...s.statusBadge, background: ss.bg, color: ss.color, borderColor: ss.border }}>{STATUS_LABEL[r.status]}</span>
-                              </td>
-                              <td style={{ ...s.td, textAlign: 'center' }}>
-                                {r.status === 'CONFIRMED' && <span style={{ fontSize: 11, color: '#999' }}>생산 대기</span>}
-                                {r.status === 'IN_PROGRESS' && <button style={s.shipBtn} onClick={() => router.push(`/worker/shipment/${r.reservation_id}`)}>출고 처리</button>}
-                                {r.status === 'COMPLETED' && <span style={{ fontSize: 11, color: '#BBB' }}>처리 완료</span>}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+          {/* 기기 필터 */}
+          <div style={s.filterRow}>
+            {[
+              { key: 'all', label: '전체' },
+              { key: 'small', label: '소형' },
+              { key: 'medium', label: '중형' },
+              { key: 'large', label: '대형' },
+              { key: 'custom', label: '직접입력' },
+            ].map(f => {
+              const count = getTypeCount(f.key);
+              const active = equipFilter === f.key;
+              return (
+                <button key={f.key} onClick={() => handleFilter(f.key)}
+                  style={{ ...s.filterBtn, ...(active ? s.filterBtnActive : {}) }}>
+                  <span>{f.label}</span>
+                  {count > 0 && <span style={{ ...s.filterCount, ...(active ? s.filterCountActive : {}) }}>{count}</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 테이블 */}
+          <div style={s.tableCard}>
+            <div style={s.tableWrap}>
+              <table style={s.table}>
+                <thead>
+                  <tr>
+                    <th style={s.th}>기기</th>
+                    <th style={s.th}>업체</th>
+                    <th style={s.th}>제품</th>
+                    <th style={s.th}>중량</th>
+                    <th style={{ ...s.th, textAlign: 'center' }}>상태</th>
+                    <th style={{ ...s.th, textAlign: 'center' }}>작업</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.length === 0 && (
+                    <tr><td colSpan={6} style={s.emptyRow}>
+                      <div style={s.emptyContent}>{Icons.factory({ size: 24, color: '#DDD' })}<span>예정된 작업이 없습니다</span></div>
+                    </td></tr>
                   )}
-                </div>
-                <div style={s.catPagination}>
-                  <button style={{ ...s.catPageBtn, opacity: pg > 1 ? 1 : 0.3 }} disabled={pg <= 1}
-                    onClick={() => setCatPages(p => ({ ...p, [cat.key]: p[cat.key] - 1 }))}>
-                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
-                  </button>
-                  <span style={s.catPageInfo}>{pg} / {totalPg}</span>
-                  <button style={{ ...s.catPageBtn, opacity: pg < totalPg ? 1 : 0.3 }} disabled={pg >= totalPg}
-                    onClick={() => setCatPages(p => ({ ...p, [cat.key]: p[cat.key] + 1 }))}>
-                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 18l6-6-6-6" /></svg>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+                  {paginated.map((r: any) => {
+                    const ss = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
+                    return (
+                      <tr key={r.reservation_id} style={s.tr}>
+                        <td style={s.tdName}>{r.equipment?.name || '-'}</td>
+                        <td style={s.td}>{r.users?.company_name || r.users?.name || '-'}</td>
+                        <td style={s.td}>{r.products?.product_name || '-'}</td>
+                        <td style={s.tdMono}>{r.kg_amount}kg</td>
+                        <td style={{ ...s.td, textAlign: 'center' }}>
+                          <span style={{ ...s.statusBadge, background: ss.bg, color: ss.color, borderColor: ss.border }}>{STATUS_LABEL[r.status]}</span>
+                        </td>
+                        <td style={{ ...s.td, textAlign: 'center' }}>
+                          {r.status === 'CONFIRMED' && <span style={{ fontSize: 11, color: '#999' }}>생산 대기</span>}
+                          {r.status === 'IN_PROGRESS' && <button style={s.shipBtn} onClick={() => router.push(`/worker/shipment/${r.reservation_id}`)}>출고 처리</button>}
+                          {r.status === 'COMPLETED' && <span style={{ fontSize: 11, color: '#BBB' }}>처리 완료</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={s.pagination}>
+              <button style={{ ...s.pageBtn, opacity: page > 1 ? 1 : 0.3 }} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button key={p} style={{ ...s.pageNum, ...(p === page ? s.pageNumActive : {}) }} onClick={() => setPage(p)}>{p}</button>
+              ))}
+              <button style={{ ...s.pageBtn, opacity: page < totalPages ? 1 : 0.3 }} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 18l6-6-6-6" /></svg>
+              </button>
+              {filtered.length > 0 && <span style={s.pageInfo}>{filtered.length}건 중 {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filtered.length)}</span>}
+            </div>
           </div>
         </div>
 
@@ -276,22 +283,19 @@ const s: Record<string, React.CSSProperties> = {
   bottomRow: { display: 'grid', gridTemplateColumns: '1fr 220px', gap: 16, alignItems: 'start' },
 
   // 카테고리 카드
-  categoryCol: { display: 'flex', flexDirection: 'column', gap: 14 },
-  catGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 },
-  catCard: { background: '#fff', borderRadius: 12, overflow: 'hidden', border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column' },
-  catHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #F0F0F0' },
-  catHeaderLeft: { display: 'flex', alignItems: 'center', gap: 8 },
-  catTitle: { fontSize: 14, fontWeight: 700, color: '#0A0A0A' },
-  catDesc: { fontSize: 11, color: '#BBB' },
-  catHeaderRight: { display: 'flex', alignItems: 'center', gap: 10 },
-  catCount: { fontSize: 13, fontWeight: 700, color: '#0A0A0A', fontFamily: "'Space Grotesk', sans-serif" },
-  catKg: { fontSize: 12, color: '#999', fontFamily: "'Space Grotesk', sans-serif" },
-  catBody: { flex: 1 },
-  catEmpty: { padding: '32px 20px', textAlign: 'center', color: '#DDD', fontSize: 12 },
-  catPagination: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px', borderTop: '1px solid #F0F0F0' },
-  catPageBtn: { width: 26, height: 26, border: '1px solid #EEEEEE', background: '#fff', borderRadius: 5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' },
-  catPageInfo: { fontSize: 11, color: '#999' },
-  tableWrap: { overflowX: 'auto' },
+  categoryCol: { display: 'flex', flexDirection: 'column', gap: 10 },
+  filterRow: { display: 'flex', gap: 4, background: '#fff', borderRadius: 10, padding: 4, border: '1px solid #EEEEEE' },
+  filterBtn: { display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', border: 'none', background: 'transparent', borderRadius: 7, fontSize: 13, fontWeight: 500, color: '#999', cursor: 'pointer' },
+  filterBtnActive: { background: '#0A0A0A', color: '#fff', fontWeight: 600 },
+  filterCount: { fontSize: 10, fontWeight: 700, color: '#CCC', background: '#F0F0F0', borderRadius: 10, padding: '1px 6px', minWidth: 18, textAlign: 'center' },
+  filterCountActive: { color: '#fff', background: 'rgba(255,255,255,0.2)' },
+  tableCard: { background: '#fff', borderRadius: 12, overflow: 'hidden', border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 380px)' },
+  tableWrap: { overflowX: 'auto', flex: 1 },
+  pagination: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '14px 20px', borderTop: '1px solid #F0F0F0', marginTop: 'auto' },
+  pageBtn: { width: 32, height: 32, border: '1px solid #EEEEEE', background: '#fff', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' },
+  pageNum: { width: 32, height: 32, border: 'none', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  pageNumActive: { background: '#0A0A0A', color: '#fff', fontWeight: 700 },
+  pageInfo: { fontSize: 11, color: '#CCC', marginLeft: 12 },
   table: { width: '100%', borderCollapse: 'collapse', minWidth: 600 },
   th: { padding: '10px 16px', textAlign: 'left' as const, fontSize: 11, color: '#AAA', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.5, background: '#FAFAFA', borderBottom: '1px solid #F0F0F0' },
   tr: { borderBottom: '1px solid #F5F5F5' },
