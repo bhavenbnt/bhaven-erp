@@ -62,6 +62,7 @@ export default function Profile() {
       action={<div style={s.topBar}><h1 style={s.pageTitle}>프로필 설정</h1></div>}
     >
       {/* 프로필 카드 */}
+      <div style={{ maxWidth: 720 }}>
       <div style={s.profileCard}>
         <div style={s.profileTop}>
           <div style={s.avatar}>{info.name?.[0]?.toUpperCase() || info.email?.[0]?.toUpperCase()}</div>
@@ -139,6 +140,7 @@ export default function Profile() {
         <button style={s.saveBtn} onClick={handleSave} disabled={saving}>
           {saving ? '저장 중...' : '변경사항 저장'}
         </button>
+      </div>
       </div>
     </Layout>
   );
