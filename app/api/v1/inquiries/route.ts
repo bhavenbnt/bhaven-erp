@@ -7,10 +7,14 @@ export async function GET(req: NextRequest) {
     const result = requireAuth(req, 'admin');
     if ('error' in result) return result.error;
 
+    const searchParams = req.nextUrl.searchParams;
+    const limit = parseInt(searchParams.get('limit') || '100');
+
     const { data, error } = await supabase
       .from('inquiries')
       .select('inquiry_id, message, status, created_at, user_id, users(name, company_name)')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
     if (error) throw error;
 

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import api from '@/lib/api';
@@ -76,10 +76,10 @@ export default function WorkerDashboard() {
   const inProgress = todayList.filter(r => r.status === 'IN_PROGRESS').length;
   const completed = todayList.filter(r => r.status === 'COMPLETED').length;
   const totalKg = todayList.reduce((sum, r) => sum + (r.kg_amount || 0), 0);
-  const filtered = equipFilter === 'all' ? todayList : todayList.filter(r => {
+  const filtered = useMemo(() => equipFilter === 'all' ? todayList : todayList.filter(r => {
     if (equipFilter === 'custom') return !['small', 'medium', 'large'].includes(r.equipment?.type);
     return r.equipment?.type === equipFilter;
-  });
+  }), [todayList, equipFilter]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const getTypeCount = (key: string) => key === 'all' ? todayList.length : todayList.filter(r => {

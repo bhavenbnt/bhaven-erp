@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
@@ -47,18 +47,18 @@ export default function Dashboard() {
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
   };
 
-  const thisMonthReservations = reservations.filter(r => isThisMonth(r.scheduled_date));
-  const nextConfirmed = reservations
+  const thisMonthReservations = useMemo(() => reservations.filter(r => isThisMonth(r.scheduled_date)), [reservations]);
+  const nextConfirmed = useMemo(() => reservations
     .filter(r => r.status === 'CONFIRMED')
-    .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime())[0];
+    .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime())[0], [reservations]);
 
-  const stats = {
+  const stats = useMemo(() => ({
     inProgress: reservations.filter(r => r.status === 'IN_PROGRESS').length,
     pending: reservations.filter(r => r.status === 'PENDING').length,
     completedThisMonth: thisMonthReservations.filter(r => r.status === 'COMPLETED').length,
     nextDate: nextConfirmed?.scheduled_date,
     nextProduct: nextConfirmed ? `${nextConfirmed.products?.product_name || '-'} · ${nextConfirmed.kg_amount}kg` : null,
-  };
+  }), [reservations, thisMonthReservations, nextConfirmed]);
 
   const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
 

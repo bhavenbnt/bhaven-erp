@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import api from '@/lib/api';
@@ -44,7 +44,7 @@ export default function MyReservations() {
 
   if (!user) return null;
 
-  const filtered = tab === 'all' ? reservations : reservations.filter(r => r.status === tab);
+  const filtered = useMemo(() => tab === 'all' ? reservations : reservations.filter(r => r.status === tab), [reservations, tab]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import api from '@/lib/api';
@@ -45,12 +45,15 @@ export default function AdminEquipment() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const handleTab = (key: string) => { setTab(key); setPage(1); };
 
-  const grouped: Record<string, any[]> = { small: [], medium: [], large: [] };
-  equipment.forEach(e => { if (grouped[e.type]) grouped[e.type].push(e); });
+  const grouped = useMemo(() => {
+    const g: Record<string, any[]> = { small: [], medium: [], large: [] };
+    equipment.forEach(e => { if (g[e.type]) g[e.type].push(e); });
+    return g;
+  }, [equipment]);
 
-  const totalNormal = equipment.filter(e => e.status === 'NORMAL').length;
-  const totalMaint = equipment.filter(e => e.status === 'MAINTENANCE').length;
-  const totalBroken = equipment.filter(e => e.status === 'BROKEN').length;
+  const totalNormal = useMemo(() => equipment.filter(e => e.status === 'NORMAL').length, [equipment]);
+  const totalMaint = useMemo(() => equipment.filter(e => e.status === 'MAINTENANCE').length, [equipment]);
+  const totalBroken = useMemo(() => equipment.filter(e => e.status === 'BROKEN').length, [equipment]);
 
   return (
     <Layout

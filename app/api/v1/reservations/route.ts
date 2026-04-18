@@ -114,6 +114,9 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const date_from = searchParams.get('date_from');
     const date_to = searchParams.get('date_to');
+    const search = searchParams.get('search');
+    const limit = parseInt(searchParams.get('limit') || '100');
+    const offset = parseInt(searchParams.get('offset') || '0');
 
     let query = supabase
       .from('reservations')
@@ -124,10 +127,23 @@ export async function GET(req: NextRequest) {
     if (date_from) query = query.gte('scheduled_date', date_from);
     if (date_to) query = query.lte('scheduled_date', date_to);
 
+    query = query.range(offset, offset + limit - 1);
+
     const { data, error } = await query;
     if (error) throw error;
 
-    return Response.json({ status: 'success', data });
+    // Client-side search filter for joined fields (company_name, product_name)
+    let filtered = data;
+    if (search) {
+      const term = search.toLowerCase();
+      filtered = (data ?? []).filter((r: any) => {
+        const companyName = r.users?.company_name?.toLowerCase() ?? '';
+        const productName = r.products?.product_name?.toLowerCase() ?? '';
+        return companyName.includes(term) || productName.includes(term);
+      });
+    }
+
+    return Response.json({ status: 'success', data: filtered });
   } catch (err) {
     console.error(err);
     return Response.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
