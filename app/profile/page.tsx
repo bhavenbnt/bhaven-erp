@@ -32,35 +32,23 @@ export default function Profile() {
 
   const handleSave = async () => {
     setSaving(true); setMsg('');
-
-    // 비밀번호 변경 (입력된 경우만)
     if (pw.current || pw.next || pw.confirm) {
       if (pw.next.length < 8) { showMsg('비밀번호는 8자 이상이어야 합니다.', 'error'); setSaving(false); return; }
       if (!/[a-zA-Z]/.test(pw.next) || !/[0-9]/.test(pw.next)) { showMsg('비밀번호는 영문과 숫자를 포함해야 합니다.', 'error'); setSaving(false); return; }
       if (pw.next !== pw.confirm) { showMsg('새 비밀번호가 일치하지 않습니다.', 'error'); setSaving(false); return; }
-      try {
-        await api.put('/auth/password', { current_password: pw.current, new_password: pw.next });
-      } catch (err: any) {
-        showMsg(err.response?.data?.error || '비밀번호 변경에 실패했습니다.', 'error');
-        setSaving(false); return;
-      }
+      try { await api.put('/auth/password', { current_password: pw.current, new_password: pw.next }); }
+      catch (err: any) { showMsg(err.response?.data?.error || '비밀번호 변경에 실패했습니다.', 'error'); setSaving(false); return; }
     }
-
-    // 업체 정보 저장
     try {
       await api.put('/auth/profile', { name: info.name, company_name: info.company_name, contact_info: info.contact_info });
       setPw({ current: '', next: '', confirm: '' });
       showMsg('변경사항이 저장되었습니다.', 'success');
-    } catch (err: any) {
-      showMsg(err.response?.data?.error || '저장에 실패했습니다.', 'error');
-    } finally { setSaving(false); }
+    } catch (err: any) { showMsg(err.response?.data?.error || '저장에 실패했습니다.', 'error'); }
+    finally { setSaving(false); }
   };
 
   return (
-    <Layout
-      title=""
-      action={<div style={s.topBar}><h1 style={s.pageTitle}>프로필 설정</h1></div>}
-    >
+    <Layout title="" action={<div style={s.topBar}><h1 style={s.pageTitle}>프로필 설정</h1></div>}>
       {/* 프로필 카드 */}
       <div style={s.profileCard}>
         <div style={s.profileTop}>
@@ -73,15 +61,14 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* 통합 폼 카드 */}
-      <div style={s.card}>
-        <div style={s.cardHeader}>
-          <div style={s.cardDot} />
-          <span style={s.cardTitle}>내 정보</span>
-        </div>
-
-        {/* 업체 정보 */}
-        <div style={s.row2}>
+      {/* 2컬럼: 업체 정보 | 비밀번호 변경 */}
+      <div style={s.grid}>
+        {/* 좌측: 업체 정보 */}
+        <div style={s.card}>
+          <div style={s.cardHeader}>
+            <div style={s.cardDot} />
+            <span style={s.cardTitle}>업체 정보</span>
+          </div>
           <div style={s.fieldGroup}>
             <label style={s.label}>업체명</label>
             <input style={s.input} value={info.company_name}
@@ -92,8 +79,6 @@ export default function Profile() {
             <input style={s.input} value={info.name}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInfo({ ...info, name: e.target.value })} />
           </div>
-        </div>
-        <div style={s.row2}>
           <div style={s.fieldGroup}>
             <label style={s.label}>연락처</label>
             <input style={s.input} value={info.contact_info} placeholder="010-0000-0000"
@@ -105,14 +90,15 @@ export default function Profile() {
           </div>
         </div>
 
-        <div style={s.divider} />
-
-        {/* 비밀번호 변경 */}
-        <div style={s.sectionLabel}>비밀번호 변경</div>
-        <div style={s.row3}>
+        {/* 우측: 비밀번호 변경 */}
+        <div style={s.card}>
+          <div style={s.cardHeader}>
+            <div style={{ ...s.cardDot, background: '#0A0A0A' }} />
+            <span style={s.cardTitle}>비밀번호 변경</span>
+          </div>
           <div style={s.fieldGroup}>
             <label style={s.label}>현재 비밀번호</label>
-            <input style={s.input} type="password" placeholder="현재 비밀번호"
+            <input style={s.input} type="password" placeholder="현재 비밀번호 입력"
               value={pw.current} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPw({ ...pw, current: e.target.value })} />
           </div>
           <div style={s.fieldGroup}>
@@ -125,21 +111,19 @@ export default function Profile() {
             <input style={s.input} type="password" placeholder="다시 입력"
               value={pw.confirm} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPw({ ...pw, confirm: e.target.value })} />
           </div>
+          <span style={s.pwHint}>변경하지 않으려면 비워두세요</span>
         </div>
-        <span style={s.pwHint}>비밀번호를 변경하지 않으려면 비워두세요</span>
-
-        <div style={s.divider} />
-
-        {/* 메시지 + 저장 */}
-        {msg && (
-          <div style={{ ...s.msgBox, background: msgType === 'success' ? '#F0F0F0' : '#FDF2F4', color: msgType === 'success' ? '#555' : '#B11F39', borderColor: msgType === 'success' ? '#E0E0E0' : '#F5D0D6' }}>
-            {msg}
-          </div>
-        )}
-        <button style={s.saveBtn} onClick={handleSave} disabled={saving}>
-          {saving ? '저장 중...' : '변경사항 저장'}
-        </button>
       </div>
+
+      {/* 메시지 + 저장 */}
+      {msg && (
+        <div style={{ ...s.msgBox, background: msgType === 'success' ? '#F0F0F0' : '#FDF2F4', color: msgType === 'success' ? '#555' : '#B11F39', borderColor: msgType === 'success' ? '#E0E0E0' : '#F5D0D6' }}>
+          {msg}
+        </div>
+      )}
+      <button style={s.saveBtn} onClick={handleSave} disabled={saving}>
+        {saving ? '저장 중...' : '변경사항 저장'}
+      </button>
     </Layout>
   );
 }
@@ -148,7 +132,7 @@ const s: Record<string, React.CSSProperties> = {
   topBar: { display: 'flex', alignItems: 'center', width: '100%' },
   pageTitle: { fontSize: 18, fontWeight: 700, color: '#0A0A0A', margin: 0, letterSpacing: -0.3 },
 
-  profileCard: { background: '#0A0A0A', borderRadius: 12, padding: '20px 22px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: 14, maxWidth: 680 },
+  profileCard: { background: '#0A0A0A', borderRadius: 12, padding: '20px 22px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: 14 },
   profileTop: { display: 'flex', alignItems: 'center', gap: 14 },
   avatar: { width: 48, height: 48, borderRadius: '50%', background: 'rgba(177,31,57,0.8)', color: '#fff', fontWeight: 700, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   profileInfo: { flex: 1 },
@@ -156,27 +140,25 @@ const s: Record<string, React.CSSProperties> = {
   profileEmail: { color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 2 },
   roleBadge: { fontSize: 11, fontWeight: 600, color: '#fff', background: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)' },
 
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 },
   card: {
-    background: '#fff', borderRadius: 12, padding: '22px 24px',
+    background: '#fff', borderRadius: 12, padding: '20px 22px',
     border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-    display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 680,
+    display: 'flex', flexDirection: 'column', gap: 14,
   },
   cardHeader: { display: 'flex', alignItems: 'center', gap: 8 },
   cardDot: { width: 4, height: 18, borderRadius: 2, background: '#B11F39' },
-  cardTitle: { fontSize: 15, fontWeight: 700, color: '#0A0A0A', letterSpacing: -0.2 },
-  divider: { height: 1, background: '#F0F0F0' },
-  sectionLabel: { fontSize: 12, fontWeight: 600, color: '#999' },
+  cardTitle: { fontSize: 14, fontWeight: 700, color: '#0A0A0A', letterSpacing: -0.2 },
 
-  row2: { display: 'flex', gap: 14 },
-  row3: { display: 'flex', gap: 12 },
-  fieldGroup: { display: 'flex', flexDirection: 'column', gap: 6, flex: 1 },
+  fieldGroup: { display: 'flex', flexDirection: 'column', gap: 6 },
   label: { fontSize: 11, fontWeight: 600, color: '#888' },
   readonlyField: { padding: '10px 14px', borderRadius: 8, fontSize: 13, color: '#0A0A0A', fontWeight: 500, background: '#F5F5F5', border: '1px solid #F0F0F0' },
   input: { padding: '10px 14px', border: '1px solid #EEEEEE', borderRadius: 8, fontSize: 13, outline: 'none', color: '#0A0A0A', background: '#FAFAFA', height: 40 },
   pwHint: { fontSize: 11, color: '#CCC' },
-  msgBox: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, borderWidth: 1, borderStyle: 'solid' },
+
+  msgBox: { padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, borderWidth: 1, borderStyle: 'solid', marginBottom: 10 },
   saveBtn: {
-    width: '100%', padding: '12px 0', background: '#B11F39', color: '#fff',
+    padding: '12px 32px', background: '#B11F39', color: '#fff',
     border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer',
     boxShadow: '0 1px 3px rgba(177,31,57,0.25)',
   },
