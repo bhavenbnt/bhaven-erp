@@ -24,6 +24,8 @@ export default function WorkerDashboard() {
   const [todayList, setTodayList] = useState<any[]>([]);
   const [tomorrowCount, setTomorrowCount] = useState(0);
   const [weekData, setWeekData] = useState<{ date: Date; count: number; kg: number }[]>([]);
+  const [catPages, setCatPages] = useState<Record<string, number>>({ small: 1, medium: 1, large: 1, custom: 1 });
+  const CAT_PAGE_SIZE = 5;
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const isToday = selectedDate === todayStr;
@@ -65,7 +67,7 @@ export default function WorkerDashboard() {
       }).catch(() => {});
   };
 
-  useEffect(() => { load(); }, [selectedDate]);
+  useEffect(() => { load(); setCatPages({ small: 1, medium: 1, large: 1, custom: 1 }); }, [selectedDate]);
 
   if (!user) return null;
 
@@ -127,11 +129,7 @@ export default function WorkerDashboard() {
       <div style={s.bottomRow}>
         {/* 기기 종류별 카드 */}
         <div style={s.categoryCol}>
-          {todayList.length === 0 && (
-            <div style={s.emptyCard}>
-              <div style={s.emptyContent}>{Icons.factory({ size: 24, color: '#DDD' })}<span>예정된 작업이 없습니다</span></div>
-            </div>
-          )}
+          <div style={s.catGrid}>
           {([
             { key: 'small', label: '소형', desc: '1~10kg' },
             { key: 'medium', label: '중형', desc: '10~20kg' },
@@ -142,8 +140,10 @@ export default function WorkerDashboard() {
               if (cat.key === 'custom') return !['small', 'medium', 'large'].includes(r.equipment?.type);
               return r.equipment?.type === cat.key;
             });
-            if (items.length === 0) return null;
             const catKg = items.reduce((sum: number, r: any) => sum + (r.kg_amount || 0), 0);
+            const pg = catPages[cat.key] || 1;
+            const totalPg = Math.max(1, Math.ceil(items.length / CAT_PAGE_SIZE));
+            const paged = items.slice((pg - 1) * CAT_PAGE_SIZE, pg * CAT_PAGE_SIZE);
             return (
               <div key={cat.key} style={s.catCard}>
                 <div style={s.catHeader}>
@@ -153,45 +153,63 @@ export default function WorkerDashboard() {
                   </div>
                   <div style={s.catHeaderRight}>
                     <span style={s.catCount}>{items.length}건</span>
-                    <span style={s.catKg}>{catKg}kg</span>
+                    {catKg > 0 && <span style={s.catKg}>{catKg}kg</span>}
                   </div>
                 </div>
-                <table style={s.table}>
-                  <thead>
-                    <tr>
-                      <th style={s.th}>기기</th>
-                      <th style={s.th}>업체</th>
-                      <th style={s.th}>제품</th>
-                      <th style={s.th}>중량</th>
-                      <th style={{ ...s.th, textAlign: 'center' }}>상태</th>
-                      <th style={{ ...s.th, textAlign: 'center' }}>작업</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((r: any) => {
-                      const ss = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
-                      return (
-                        <tr key={r.reservation_id} style={s.tr}>
-                          <td style={s.tdName}>{r.equipment?.name || '-'}</td>
-                          <td style={s.td}>{r.users?.company_name || r.users?.name || '-'}</td>
-                          <td style={s.td}>{r.products?.product_name || '-'}</td>
-                          <td style={s.tdMono}>{r.kg_amount}kg</td>
-                          <td style={{ ...s.td, textAlign: 'center' }}>
-                            <span style={{ ...s.statusBadge, background: ss.bg, color: ss.color, borderColor: ss.border }}>{STATUS_LABEL[r.status]}</span>
-                          </td>
-                          <td style={{ ...s.td, textAlign: 'center' }}>
-                            {r.status === 'CONFIRMED' && <span style={{ fontSize: 11, color: '#999' }}>생산 대기</span>}
-                            {r.status === 'IN_PROGRESS' && <button style={s.shipBtn} onClick={() => router.push(`/worker/shipment/${r.reservation_id}`)}>출고 처리</button>}
-                            {r.status === 'COMPLETED' && <span style={{ fontSize: 11, color: '#BBB' }}>처리 완료</span>}
-                          </td>
+                <div style={s.catBody}>
+                  {items.length === 0 ? (
+                    <div style={s.catEmpty}>작업 없음</div>
+                  ) : (
+                    <table style={s.table}>
+                      <thead>
+                        <tr>
+                          <th style={s.th}>기기</th>
+                          <th style={s.th}>업체</th>
+                          <th style={s.th}>제품</th>
+                          <th style={s.th}>중량</th>
+                          <th style={{ ...s.th, textAlign: 'center' }}>상태</th>
+                          <th style={{ ...s.th, textAlign: 'center' }}>작업</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody>
+                        {paged.map((r: any) => {
+                          const ss = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
+                          return (
+                            <tr key={r.reservation_id} style={s.tr}>
+                              <td style={s.tdName}>{r.equipment?.name || '-'}</td>
+                              <td style={s.td}>{r.users?.company_name || r.users?.name || '-'}</td>
+                              <td style={s.td}>{r.products?.product_name || '-'}</td>
+                              <td style={s.tdMono}>{r.kg_amount}kg</td>
+                              <td style={{ ...s.td, textAlign: 'center' }}>
+                                <span style={{ ...s.statusBadge, background: ss.bg, color: ss.color, borderColor: ss.border }}>{STATUS_LABEL[r.status]}</span>
+                              </td>
+                              <td style={{ ...s.td, textAlign: 'center' }}>
+                                {r.status === 'CONFIRMED' && <span style={{ fontSize: 11, color: '#999' }}>생산 대기</span>}
+                                {r.status === 'IN_PROGRESS' && <button style={s.shipBtn} onClick={() => router.push(`/worker/shipment/${r.reservation_id}`)}>출고 처리</button>}
+                                {r.status === 'COMPLETED' && <span style={{ fontSize: 11, color: '#BBB' }}>처리 완료</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+                <div style={s.catPagination}>
+                  <button style={{ ...s.catPageBtn, opacity: pg > 1 ? 1 : 0.3 }} disabled={pg <= 1}
+                    onClick={() => setCatPages(p => ({ ...p, [cat.key]: p[cat.key] - 1 }))}>
+                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
+                  </button>
+                  <span style={s.catPageInfo}>{pg} / {totalPg}</span>
+                  <button style={{ ...s.catPageBtn, opacity: pg < totalPg ? 1 : 0.3 }} disabled={pg >= totalPg}
+                    onClick={() => setCatPages(p => ({ ...p, [cat.key]: p[cat.key] + 1 }))}>
+                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 18l6-6-6-6" /></svg>
+                  </button>
+                </div>
               </div>
             );
           })}
+          </div>
         </div>
 
         {/* 이번 주 */}
@@ -259,8 +277,8 @@ const s: Record<string, React.CSSProperties> = {
 
   // 카테고리 카드
   categoryCol: { display: 'flex', flexDirection: 'column', gap: 14 },
-  emptyCard: { background: '#fff', borderRadius: 12, border: '1px solid #EEEEEE', padding: '48px 20px', textAlign: 'center' },
-  catCard: { background: '#fff', borderRadius: 12, overflow: 'hidden', border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' },
+  catGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 },
+  catCard: { background: '#fff', borderRadius: 12, overflow: 'hidden', border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column' },
   catHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #F0F0F0' },
   catHeaderLeft: { display: 'flex', alignItems: 'center', gap: 8 },
   catTitle: { fontSize: 14, fontWeight: 700, color: '#0A0A0A' },
@@ -268,6 +286,11 @@ const s: Record<string, React.CSSProperties> = {
   catHeaderRight: { display: 'flex', alignItems: 'center', gap: 10 },
   catCount: { fontSize: 13, fontWeight: 700, color: '#0A0A0A', fontFamily: "'Space Grotesk', sans-serif" },
   catKg: { fontSize: 12, color: '#999', fontFamily: "'Space Grotesk', sans-serif" },
+  catBody: { flex: 1 },
+  catEmpty: { padding: '32px 20px', textAlign: 'center', color: '#DDD', fontSize: 12 },
+  catPagination: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px', borderTop: '1px solid #F0F0F0' },
+  catPageBtn: { width: 26, height: 26, border: '1px solid #EEEEEE', background: '#fff', borderRadius: 5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' },
+  catPageInfo: { fontSize: 11, color: '#999' },
   tableWrap: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse', minWidth: 600 },
   th: { padding: '10px 16px', textAlign: 'left' as const, fontSize: 11, color: '#AAA', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.5, background: '#FAFAFA', borderBottom: '1px solid #F0F0F0' },
