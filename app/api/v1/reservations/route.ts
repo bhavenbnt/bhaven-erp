@@ -147,6 +147,17 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 });
     }
 
+    // 휴무일 체크
+    const { data: holiday } = await supabase
+      .from('holidays')
+      .select('holiday_id')
+      .eq('holiday_date', scheduled_date)
+      .single();
+
+    if (holiday) {
+      return Response.json({ error: '해당 날짜는 휴무일입니다. 다른 날짜를 선택해주세요.' }, { status: 400 });
+    }
+
     // is_approved 체크
     const { data: userInfo } = await supabase
       .from('users')

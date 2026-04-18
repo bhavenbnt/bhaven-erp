@@ -9,6 +9,13 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 });
     }
 
+    if (password.length < 8) {
+      return Response.json({ error: '비밀번호는 8자 이상이어야 합니다.' }, { status: 400 });
+    }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return Response.json({ error: '비밀번호는 영문과 숫자를 포함해야 합니다.' }, { status: 400 });
+    }
+
     // 1. Supabase Auth에 사용자 생성
     const { data: authData, error: authError } = await supabaseAuth.auth.signUp({ email, password });
 

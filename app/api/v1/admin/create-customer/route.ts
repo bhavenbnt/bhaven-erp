@@ -18,8 +18,11 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: '이메일, 비밀번호, 담당자명은 필수입니다.' }, { status: 400 });
     }
 
-    if (password.length < 6) {
-      return Response.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, { status: 400 });
+    if (password.length < 8) {
+      return Response.json({ error: '비밀번호는 8자 이상이어야 합니다.' }, { status: 400 });
+    }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return Response.json({ error: '비밀번호는 영문과 숫자를 포함해야 합니다.' }, { status: 400 });
     }
 
     // 1. Supabase Auth에 유저 생성 (이메일 인증 완료 상태)

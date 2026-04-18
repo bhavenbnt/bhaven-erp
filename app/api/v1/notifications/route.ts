@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
       .select('*')
       .eq('user_id', user.user_id)
       .order('created_at', { ascending: false })
-      .limit(30);
+      .limit(50);
 
     if (error) throw error;
 

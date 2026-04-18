@@ -20,8 +20,11 @@ export async function POST(req: NextRequest) {
     if (!['admin', 'worker'].includes(role)) {
       return Response.json({ error: '역할은 admin 또는 worker만 가능합니다.' }, { status: 400 });
     }
-    if (password.length < 6) {
-      return Response.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, { status: 400 });
+    if (password.length < 8) {
+      return Response.json({ error: '비밀번호는 8자 이상이어야 합니다.' }, { status: 400 });
+    }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return Response.json({ error: '비밀번호는 영문과 숫자를 포함해야 합니다.' }, { status: 400 });
     }
 
     // 1. Supabase Auth

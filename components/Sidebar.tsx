@@ -159,7 +159,7 @@ export default function Sidebar() {
           </div>
         ) : (
           <div style={styles.notiList}>
-            {notifications.slice(0, 10).map((n: any) => {
+            {notifications.slice(0, 20).map((n: any) => {
               const typeInfo = NOTI_TYPE_ICON[n.noti_type] || NOTI_TYPE_ICON.info;
               return (
                 <div key={n.notification_id} style={{
