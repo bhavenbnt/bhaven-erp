@@ -326,23 +326,23 @@ const s: Record<string, React.CSSProperties> = {
     flex: 1, display: 'flex', flexDirection: 'column',
   },
   dayHeader: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #F0F0F0' },
-  dayName: { padding: '8px 0', textAlign: 'center', fontSize: 11, fontWeight: 600, letterSpacing: 0.5, background: '#FAFAFA' },
+  dayName: { padding: '10px 0', textAlign: 'center', fontSize: 12, fontWeight: 600, letterSpacing: 0.5, background: '#FAFAFA' },
   week: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1 },
-  cell: { padding: '8px 6px', display: 'flex', flexDirection: 'column', minHeight: 90 },
+  cell: { padding: '8px 8px', display: 'flex', flexDirection: 'column', minHeight: 96 },
 
   dayTopRow: { display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 },
-  dayNum: { fontSize: 12, fontWeight: 500, fontFamily: "'Space Grotesk', sans-serif" },
+  dayNum: { fontSize: 14, fontWeight: 500, fontFamily: "'Space Grotesk', sans-serif" },
   todayNum: {
     color: '#fff', fontWeight: 700, background: '#B11F39', borderRadius: '50%',
-    width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
+    width: 26, height: 26, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
   },
   holidayTag: {
-    fontSize: 8, fontWeight: 600, color: '#999', background: '#F0F0F0',
+    fontSize: 11, fontWeight: 600, color: '#999', background: '#F0F0F0',
     borderRadius: 3, padding: '1px 4px', border: '1px solid #E8E8E8',
   },
-  holidayReason: { fontSize: 9, color: '#CCC', marginTop: 2 },
+  holidayReason: { fontSize: 11, color: '#CCC', marginTop: 2 },
   kgBadge: {
-    fontSize: 9, fontWeight: 700, color: '#B11F39', background: '#FDF2F4',
+    fontSize: 11, fontWeight: 700, color: '#B11F39', background: '#FDF2F4',
     borderRadius: 10, padding: '1px 6px', marginLeft: 'auto',
     border: '1px solid #F5D0D6',
   },
@@ -351,11 +351,11 @@ const s: Record<string, React.CSSProperties> = {
   reservBadge: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '3px 6px', borderRadius: 3, background: '#FAFAFA',
-    borderLeft: '2px solid #CCC', fontSize: 9,
+    borderLeft: '2px solid #CCC', fontSize: 12,
   },
   reservEquip: { fontWeight: 600, color: '#333' },
-  reservStatus: { fontWeight: 600, fontSize: 8 },
-  moreCount: { fontSize: 9, color: '#CCC', fontWeight: 500, paddingLeft: 4 },
+  reservStatus: { fontWeight: 600, fontSize: 11 },
+  moreCount: { fontSize: 11, color: '#CCC', fontWeight: 500, paddingLeft: 4 },
 
   toast: {
     position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',

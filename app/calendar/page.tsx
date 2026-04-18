@@ -374,27 +374,27 @@ const st: Record<string, React.CSSProperties> = {
     flex: 1, display: 'flex', flexDirection: 'column',
   },
   dayHeader: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #F0F0F0' },
-  dayName: { padding: '7px 0', textAlign: 'center', fontSize: 10, fontWeight: 600, letterSpacing: 0.5, background: '#FAFAFA', textTransform: 'uppercase' },
+  dayName: { padding: '10px 0', textAlign: 'center', fontSize: 12, fontWeight: 600, letterSpacing: 0.5, background: '#FAFAFA', textTransform: 'uppercase' },
   week: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1 },
-  cell: { padding: '6px 6px', display: 'flex', flexDirection: 'column' },
+  cell: { padding: '8px 8px', display: 'flex', flexDirection: 'column' },
 
   dayTopRow: { display: 'flex', alignItems: 'center', gap: 3, marginBottom: 4, flexWrap: 'wrap' },
-  dayNum: { fontSize: 12, fontWeight: 500, fontFamily: "'Space Grotesk', sans-serif" },
+  dayNum: { fontSize: 14, fontWeight: 500, fontFamily: "'Space Grotesk', sans-serif" },
   todayNum: {
     color: '#fff', fontWeight: 700, background: '#B11F39', borderRadius: '50%',
-    width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
+    width: 26, height: 26, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
   },
-  holidayTag: { fontSize: 8, fontWeight: 600, color: '#999', background: '#F0F0F0', borderRadius: 3, padding: '1px 4px', border: '1px solid #E8E8E8' },
-  availTag: { fontSize: 8, fontWeight: 600, borderRadius: 3, padding: '1px 5px', marginLeft: 'auto' },
+  holidayTag: { fontSize: 11, fontWeight: 600, color: '#999', background: '#F0F0F0', borderRadius: 3, padding: '1px 4px', border: '1px solid #E8E8E8' },
+  availTag: { fontSize: 11, fontWeight: 600, borderRadius: 3, padding: '1px 5px', marginLeft: 'auto' },
 
   reservList: { display: 'flex', flexDirection: 'column', gap: 2, flex: 1 },
   myReserv: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '3px 6px', borderRadius: 3, background: '#FAFAFA', borderLeft: '2px solid #CCC', fontSize: 9,
+    padding: '3px 6px', borderRadius: 3, background: '#FAFAFA', borderLeft: '2px solid #CCC', fontSize: 12,
   },
   myReservKg: { fontWeight: 600, color: '#333', fontFamily: "'Space Grotesk', sans-serif" },
-  myReservStatus: { fontWeight: 600, fontSize: 8 },
-  moreCount: { fontSize: 9, color: '#CCC', fontWeight: 500, paddingLeft: 3 },
+  myReservStatus: { fontWeight: 600, fontSize: 11 },
+  moreCount: { fontSize: 11, color: '#CCC', fontWeight: 500, paddingLeft: 3 },
 
   toast: {
     position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
