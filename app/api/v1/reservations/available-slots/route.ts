@@ -37,10 +37,9 @@ export async function GET(req: NextRequest) {
       usageMap[res.equipment_id] = (usageMap[res.equipment_id] ?? 0) + (res.kg_amount ?? 0);
     }
 
-    const result = (equipment ?? [])
+    const slots = (equipment ?? [])
       .map((eq) => {
         const used_capacity = usageMap[eq.equipment_id] ?? 0;
-        // MAINTENANCE 기기: 고객에게 예약이 찬 것처럼 마스킹 (available_capacity = 0)
         const available_capacity = eq.status === 'MAINTENANCE'
           ? 0
           : eq.max_capacity - used_capacity;
@@ -48,7 +47,7 @@ export async function GET(req: NextRequest) {
       })
       .filter((eq) => eq.available_capacity > 0);
 
-    return Response.json({ status: 'success', data: result });
+    return Response.json({ status: 'success', data: slots });
   } catch (err) {
     console.error(err);
     return Response.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
