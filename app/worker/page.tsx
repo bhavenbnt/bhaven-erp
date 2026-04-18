@@ -16,7 +16,6 @@ const STATUS_STYLE: Record<string, { color: string; bg: string; border: string }
   CANCELLED:   { color: '#AAA', bg: '#FAFAFA', border: '#F0F0F0' },
 };
 const DAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
-const PAGE_SIZE = 8;
 
 export default function WorkerDashboard() {
   const router = useRouter();
@@ -25,7 +24,6 @@ export default function WorkerDashboard() {
   const [todayList, setTodayList] = useState<any[]>([]);
   const [tomorrowCount, setTomorrowCount] = useState(0);
   const [weekData, setWeekData] = useState<{ date: Date; count: number; kg: number }[]>([]);
-  const [page, setPage] = useState(1);
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const isToday = selectedDate === todayStr;
@@ -67,7 +65,7 @@ export default function WorkerDashboard() {
       }).catch(() => {});
   };
 
-  useEffect(() => { load(); setPage(1); }, [selectedDate]);
+  useEffect(() => { load(); }, [selectedDate]);
 
   if (!user) return null;
 
@@ -75,8 +73,6 @@ export default function WorkerDashboard() {
   const inProgress = todayList.filter(r => r.status === 'IN_PROGRESS').length;
   const completed = todayList.filter(r => r.status === 'COMPLETED').length;
   const totalKg = todayList.reduce((sum, r) => sum + (r.kg_amount || 0), 0);
-  const totalPages = Math.max(1, Math.ceil(todayList.length / PAGE_SIZE));
-  const paginated = todayList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selectedD = new Date(selectedDate + 'T00:00:00');
   const dateStr = selectedD.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
@@ -129,68 +125,73 @@ export default function WorkerDashboard() {
       </div>
 
       <div style={s.bottomRow}>
-        {/* 생산 테이블 */}
-        <div style={s.tableCard}>
-          <div style={s.tableHeader}>
-            <span style={s.tableTitle}>{dateStr}</span>
-            <span style={s.countBadge}>{total}건</span>
-          </div>
-          <div style={s.tableWrap}>
-            <table style={s.table}>
-              <thead>
-                <tr>
-                  <th style={s.th}>#</th>
-                  <th style={s.th}>기기</th>
-                  <th style={s.th}>업체</th>
-                  <th style={s.th}>제품</th>
-                  <th style={s.th}>중량</th>
-                  <th style={{ ...s.th, textAlign: 'center' }}>상태</th>
-                  <th style={{ ...s.th, textAlign: 'center' }}>작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.length === 0 && (
-                  <tr><td colSpan={7} style={s.emptyRow}>
-                    <div style={s.emptyContent}>{Icons.factory({ size: 24, color: '#DDD' })}<span>오늘 예정된 작업이 없습니다</span></div>
-                  </td></tr>
-                )}
-                {paginated.map((r: any) => {
-                  const ss = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
-                  return (
-                    <tr key={r.reservation_id} style={s.tr}>
-                      <td style={s.tdId}>{r.reservation_id}</td>
-                      <td style={s.tdName}>{r.equipment?.name || '-'}</td>
-                      <td style={s.td}>{r.users?.company_name || r.users?.name || '-'}</td>
-                      <td style={s.td}>{r.products?.product_name || '-'}</td>
-                      <td style={s.tdMono}>{r.kg_amount}kg</td>
-                      <td style={{ ...s.td, textAlign: 'center' }}>
-                        <span style={{ ...s.statusBadge, background: ss.bg, color: ss.color, borderColor: ss.border }}>{STATUS_LABEL[r.status]}</span>
-                      </td>
-                      <td style={{ ...s.td, textAlign: 'center' }}>
-                        <div style={s.actionBtns}>
-                          {r.status === 'CONFIRMED' && <span style={{ fontSize: 11, color: '#999' }}>생산 대기</span>}
-                          {r.status === 'IN_PROGRESS' && <button style={s.shipBtn} onClick={() => router.push(`/worker/shipment/${r.reservation_id}`)}>출고 처리</button>}
-                          {r.status === 'COMPLETED' && <span style={{ fontSize: 11, color: '#BBB' }}>처리 완료</span>}
-                        </div>
-                      </td>
+        {/* 기기 종류별 카드 */}
+        <div style={s.categoryCol}>
+          {todayList.length === 0 && (
+            <div style={s.emptyCard}>
+              <div style={s.emptyContent}>{Icons.factory({ size: 24, color: '#DDD' })}<span>예정된 작업이 없습니다</span></div>
+            </div>
+          )}
+          {([
+            { key: 'small', label: '소형', desc: '1~10kg' },
+            { key: 'medium', label: '중형', desc: '10~20kg' },
+            { key: 'large', label: '대형', desc: '25~60kg' },
+            { key: 'custom', label: '직접 입력', desc: '사용자 정의' },
+          ]).map(cat => {
+            const items = todayList.filter(r => {
+              if (cat.key === 'custom') return !['small', 'medium', 'large'].includes(r.equipment?.type);
+              return r.equipment?.type === cat.key;
+            });
+            if (items.length === 0) return null;
+            const catKg = items.reduce((sum: number, r: any) => sum + (r.kg_amount || 0), 0);
+            return (
+              <div key={cat.key} style={s.catCard}>
+                <div style={s.catHeader}>
+                  <div style={s.catHeaderLeft}>
+                    <span style={s.catTitle}>{cat.label}</span>
+                    <span style={s.catDesc}>{cat.desc}</span>
+                  </div>
+                  <div style={s.catHeaderRight}>
+                    <span style={s.catCount}>{items.length}건</span>
+                    <span style={s.catKg}>{catKg}kg</span>
+                  </div>
+                </div>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>기기</th>
+                      <th style={s.th}>업체</th>
+                      <th style={s.th}>제품</th>
+                      <th style={s.th}>중량</th>
+                      <th style={{ ...s.th, textAlign: 'center' }}>상태</th>
+                      <th style={{ ...s.th, textAlign: 'center' }}>작업</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div style={s.pagination}>
-            <button style={{ ...s.pageBtn, opacity: page > 1 ? 1 : 0.3 }} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <button key={p} style={{ ...s.pageNum, ...(p === page ? s.pageNumActive : {}) }} onClick={() => setPage(p)}>{p}</button>
-            ))}
-            <button style={{ ...s.pageBtn, opacity: page < totalPages ? 1 : 0.3 }} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 18l6-6-6-6" /></svg>
-            </button>
-            {todayList.length > 0 && <span style={s.pageInfo}>{todayList.length}건 중 {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, todayList.length)}</span>}
-          </div>
+                  </thead>
+                  <tbody>
+                    {items.map((r: any) => {
+                      const ss = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
+                      return (
+                        <tr key={r.reservation_id} style={s.tr}>
+                          <td style={s.tdName}>{r.equipment?.name || '-'}</td>
+                          <td style={s.td}>{r.users?.company_name || r.users?.name || '-'}</td>
+                          <td style={s.td}>{r.products?.product_name || '-'}</td>
+                          <td style={s.tdMono}>{r.kg_amount}kg</td>
+                          <td style={{ ...s.td, textAlign: 'center' }}>
+                            <span style={{ ...s.statusBadge, background: ss.bg, color: ss.color, borderColor: ss.border }}>{STATUS_LABEL[r.status]}</span>
+                          </td>
+                          <td style={{ ...s.td, textAlign: 'center' }}>
+                            {r.status === 'CONFIRMED' && <span style={{ fontSize: 11, color: '#999' }}>생산 대기</span>}
+                            {r.status === 'IN_PROGRESS' && <button style={s.shipBtn} onClick={() => router.push(`/worker/shipment/${r.reservation_id}`)}>출고 처리</button>}
+                            {r.status === 'COMPLETED' && <span style={{ fontSize: 11, color: '#BBB' }}>처리 완료</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
         </div>
 
         {/* 이번 주 */}
@@ -256,11 +257,17 @@ const s: Record<string, React.CSSProperties> = {
 
   bottomRow: { display: 'grid', gridTemplateColumns: '1fr 220px', gap: 16, alignItems: 'start' },
 
-  // 테이블
-  tableCard: { background: '#fff', borderRadius: 12, overflow: 'hidden', border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 340px)' },
-  tableHeader: { display: 'flex', alignItems: 'center', gap: 8, padding: '16px 20px', borderBottom: '1px solid #F0F0F0' },
-  tableTitle: { fontSize: 14, fontWeight: 700, color: '#0A0A0A', letterSpacing: -0.2 },
-  countBadge: { fontSize: 10, fontWeight: 700, color: '#B11F39', background: '#FDF2F4', borderRadius: 10, padding: '2px 7px', border: '1px solid #F5D0D6' },
+  // 카테고리 카드
+  categoryCol: { display: 'flex', flexDirection: 'column', gap: 14 },
+  emptyCard: { background: '#fff', borderRadius: 12, border: '1px solid #EEEEEE', padding: '48px 20px', textAlign: 'center' },
+  catCard: { background: '#fff', borderRadius: 12, overflow: 'hidden', border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' },
+  catHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #F0F0F0' },
+  catHeaderLeft: { display: 'flex', alignItems: 'center', gap: 8 },
+  catTitle: { fontSize: 14, fontWeight: 700, color: '#0A0A0A' },
+  catDesc: { fontSize: 11, color: '#BBB' },
+  catHeaderRight: { display: 'flex', alignItems: 'center', gap: 10 },
+  catCount: { fontSize: 13, fontWeight: 700, color: '#0A0A0A', fontFamily: "'Space Grotesk', sans-serif" },
+  catKg: { fontSize: 12, color: '#999', fontFamily: "'Space Grotesk', sans-serif" },
   tableWrap: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse', minWidth: 600 },
   th: { padding: '10px 16px', textAlign: 'left' as const, fontSize: 11, color: '#AAA', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.5, background: '#FAFAFA', borderBottom: '1px solid #F0F0F0' },
@@ -277,11 +284,6 @@ const s: Record<string, React.CSSProperties> = {
   completeBtn: { padding: '5px 12px', background: '#0A0A0A', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' },
   shipBtn: { padding: '5px 12px', background: '#fff', color: '#B11F39', border: '1px solid #F5D0D6', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' },
 
-  pagination: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '14px 20px', borderTop: '1px solid #F0F0F0', marginTop: 'auto' },
-  pageBtn: { width: 32, height: 32, border: '1px solid #EEEEEE', background: '#fff', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' },
-  pageNum: { width: 32, height: 32, border: 'none', background: 'transparent', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  pageNumActive: { background: '#0A0A0A', color: '#fff', fontWeight: 700 },
-  pageInfo: { fontSize: 11, color: '#CCC', marginLeft: 12 },
 
   // 이번 주
   weekCard: {
