@@ -4,8 +4,8 @@ import { requireAuth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
-    const result = requireAuth(req);
-    if ('error' in result) return result.error;
+    const authResult = requireAuth(req);
+    if ('error' in authResult) return authResult.error;
 
     const searchParams = req.nextUrl.searchParams;
     const start_date = searchParams.get('start_date');
@@ -15,39 +15,67 @@ export async function GET(req: NextRequest) {
       return Response.json({ error: 'start_date와 end_date가 필요합니다.' }, { status: 400 });
     }
 
-    // BROKEN 기기 제외, MAINTENANCE는 포함하되 고객에게 용량 0으로 마스킹
     const { data: equipment, error: equipError } = await supabase
       .from('equipment')
-      .select('*')
+      .select('equipment_id, name, type, min_capacity, max_capacity, divisions, status')
       .neq('status', 'BROKEN');
 
     if (equipError) throw equipError;
 
     const { data: reservations, error: resError } = await supabase
       .from('reservations')
-      .select('equipment_id, kg_amount')
+      .select('equipment_id, kg_amount, scheduled_date')
       .neq('status', 'CANCELLED')
       .gte('scheduled_date', start_date)
       .lte('scheduled_date', end_date);
 
     if (resError) throw resError;
 
-    const usageMap: Record<number, number> = {};
+    // 날짜별 + 기기별 사용량 맵
+    const usageByDate: Record<string, Record<number, number>> = {};
     for (const res of reservations ?? []) {
-      usageMap[res.equipment_id] = (usageMap[res.equipment_id] ?? 0) + (res.kg_amount ?? 0);
+      const d = res.scheduled_date;
+      if (!usageByDate[d]) usageByDate[d] = {};
+      usageByDate[d][res.equipment_id] = (usageByDate[d][res.equipment_id] ?? 0) + (res.kg_amount ?? 0);
     }
 
-    const slots = (equipment ?? [])
-      .map((eq) => {
-        const used_capacity = usageMap[eq.equipment_id] ?? 0;
-        const available_capacity = eq.status === 'MAINTENANCE'
-          ? 0
-          : eq.max_capacity - used_capacity;
-        return { ...eq, used_capacity, available_capacity };
-      })
-      .filter((eq) => eq.available_capacity > 0);
+    // 단일 날짜 요청 (기존 호환) vs 범위 요청
+    if (start_date === end_date) {
+      const dateUsage = usageByDate[start_date] || {};
+      const slots = (equipment ?? [])
+        .map((eq) => {
+          const used = dateUsage[eq.equipment_id] ?? 0;
+          const available_capacity = eq.status === 'MAINTENANCE' ? 0 : eq.max_capacity - used;
+          return { ...eq, used_capacity: used, available_capacity };
+        })
+        .filter((eq) => eq.available_capacity > 0);
+      return Response.json({ status: 'success', data: slots });
+    }
 
-    return Response.json({ status: 'success', data: slots });
+    // 범위 요청: 날짜별 가용 기기 수 반환
+    const dates: string[] = [];
+    const cur = new Date(start_date + 'T00:00:00');
+    const endD = new Date(end_date + 'T00:00:00');
+    while (cur <= endD) {
+      dates.push(cur.toISOString().split('T')[0]);
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    const byDate: Record<string, { available: number; total: number }> = {};
+    for (const d of dates) {
+      const dateUsage = usageByDate[d] || {};
+      let available = 0;
+      let total = 0;
+      for (const eq of equipment ?? []) {
+        if (eq.status === 'MAINTENANCE') continue;
+        total++;
+        const used = dateUsage[eq.equipment_id] ?? 0;
+        if (eq.max_capacity - used > 0) available++;
+      }
+      byDate[d] = { available, total };
+    }
+
+    return Response.json({ status: 'success', data: byDate });
   } catch (err) {
     console.error(err);
     return Response.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
