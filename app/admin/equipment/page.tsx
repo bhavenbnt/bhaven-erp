@@ -15,9 +15,19 @@ const STATUS_STYLE: Record<string, { color: string; bg: string; border: string }
   BROKEN:      { color: '#AAA', bg: '#FAFAFA', border: '#F0F0F0' },
 };
 
+const TABS = [
+  { key: 'all', label: '전체' },
+  { key: 'small', label: '소형' },
+  { key: 'medium', label: '중형' },
+  { key: 'large', label: '대형' },
+];
+
+const PAGE_SIZE = 10;
 
 export default function AdminEquipment() {
   const [equipment, setEquipment] = useState<any[]>([]);
+  const [tab, setTab] = useState('all');
+  const [page, setPage] = useState(1);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -30,12 +40,17 @@ export default function AdminEquipment() {
 
   if (!user) return null;
 
-  const grouped: Record<string, any[]> = { small: [], medium: [], large: [], custom: [] };
-  equipment.forEach(e => {
-    if (['small', 'medium', 'large'].includes(e.type)) grouped[e.type].push(e);
-    else grouped.custom.push(e);
-  });
+  const filtered = tab === 'all' ? equipment : equipment.filter(e => e.type === tab);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const handleTab = (key: string) => { setTab(key); setPage(1); };
 
+  const grouped: Record<string, any[]> = { small: [], medium: [], large: [] };
+  equipment.forEach(e => { if (grouped[e.type]) grouped[e.type].push(e); });
+
+  const totalNormal = equipment.filter(e => e.status === 'NORMAL').length;
+  const totalMaint = equipment.filter(e => e.status === 'MAINTENANCE').length;
+  const totalBroken = equipment.filter(e => e.status === 'BROKEN').length;
 
   return (
     <Layout
@@ -53,68 +68,120 @@ export default function AdminEquipment() {
         </div>
       }
     >
-      {/* 카테고리별 카드 */}
-      <div style={s.categoryGrid}>
-        {([
-          { key: 'small', label: '소형', desc: '1~10kg · 4분할' },
-          { key: 'medium', label: '중형', desc: '10~20kg · 단일' },
-          { key: 'large', label: '대형', desc: '25~60kg · 단일' },
-          { key: 'custom', label: '직접 입력', desc: '사용자 정의' },
-        ]).map(cat => {
-          const items = grouped[cat.key] || [];
-          const normal = items.filter((e: any) => e.status === 'NORMAL').length;
+      {/* 통계 카드 */}
+      <div style={s.statsRow}>
+        <div style={{ ...s.statCard, ...s.statCardDark }}>
+          <div style={s.statTop}>
+            <div style={{ ...s.statIconWrap, background: 'rgba(255,255,255,0.08)' }}>
+              {Icons.settings({ size: 16, color: 'rgba(255,255,255,0.6)' })}
+            </div>
+            <span style={{ ...s.statLabel, color: 'rgba(255,255,255,0.5)' }}>전체 기기</span>
+          </div>
+          <div style={{ ...s.statValue, color: '#fff' }}>{equipment.length}<span style={{ ...s.statUnit, color: 'rgba(255,255,255,0.35)' }}>대</span></div>
+          <div style={{ ...s.statSub, color: 'rgba(255,255,255,0.25)' }}>정상 {totalNormal} · 점검 {totalMaint} · 고장 {totalBroken}</div>
+        </div>
+        {(['small', 'medium', 'large'] as const).map(type => {
+          const items = grouped[type] || [];
+          const normal = items.filter(e => e.status === 'NORMAL').length;
           return (
-            <div key={cat.key} style={s.categoryCard}>
-              <div style={s.categoryHeader}>
-                <div style={s.categoryLeft}>
-                  <span style={s.categoryTitle}>{cat.label}</span>
-                  <span style={s.categoryDesc}>{cat.desc}</span>
-                </div>
-                <div style={s.categoryStats}>
-                  <span style={s.categoryCount}>{items.length}대</span>
-                  <span style={s.categoryNormal}>가동 {normal}</span>
-                </div>
+            <div key={type} style={s.statCard}>
+              <div style={s.statTop}>
+                <div style={s.statIconWrap}>{Icons.factory({ size: 16, color: '#B11F39' })}</div>
+                <span style={s.statLabel}>{TYPE_LABEL[type]}</span>
               </div>
-              {items.length > 0 ? (
-                <table style={s.table}>
-                  <thead>
-                    <tr>
-                      <th style={s.th}>코드</th>
-                      <th style={s.th}>기기명</th>
-                      <th style={s.th}>용량</th>
-                      <th style={{ ...s.th, textAlign: 'center' }}>상태</th>
-                      <th style={{ ...s.th, textAlign: 'center' }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((e: any) => {
-                      const ss = STATUS_STYLE[e.status] || STATUS_STYLE.NORMAL;
-                      return (
-                        <tr key={e.equipment_id} style={s.tr}>
-                          <td style={s.tdCode}>{e.equipment_code}</td>
-                          <td style={s.tdName}>{e.name}</td>
-                          <td style={s.tdMono}>{e.min_capacity}~{e.max_capacity}kg</td>
-                          <td style={{ ...s.td, textAlign: 'center' }}>
-                            <span style={{ ...s.statusBadge, background: ss.bg, color: ss.color, borderColor: ss.border }}>
-                              {STATUS_LABEL[e.status]}
-                            </span>
-                          </td>
-                          <td style={{ ...s.td, textAlign: 'center' }}>
-                            <button style={s.editBtn} onClick={() => router.push(`/admin/equipment/${e.equipment_id}`)}>
-                              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              ) : (
-                <div style={s.categoryEmpty}>등록된 기기 없음</div>
-              )}
+              <div style={s.statValue}>{items.length}<span style={s.statUnit}>대</span></div>
+              <div style={s.statSub}>
+                {items.length > 0 ? `${items[0].min_capacity}~${items[0].max_capacity}kg` : '-'} · 가동 {normal}대
+              </div>
             </div>
           );
         })}
+      </div>
+
+      {/* 필터 탭 */}
+      <div style={s.tabRow}>
+        {TABS.map(t => {
+          const count = t.key === 'all' ? equipment.length : (grouped[t.key]?.length || 0);
+          const active = tab === t.key;
+          return (
+            <button key={t.key} onClick={() => handleTab(t.key)}
+              style={{ ...s.tab, ...(active ? s.tabActive : {}) }}>
+              <span>{t.label}</span>
+              <span style={{ ...s.tabCount, ...(active ? s.tabCountActive : {}) }}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 테이블 */}
+      <div style={s.tableCard}>
+        <div style={s.tableWrap}>
+          <table style={s.table}>
+            <thead>
+              <tr>
+                <th style={s.th}>기기 코드</th>
+                <th style={s.th}>기기명</th>
+                <th style={s.th}>구분</th>
+                <th style={s.th}>용량 범위</th>
+                <th style={s.th}>분할</th>
+                <th style={{ ...s.th, textAlign: 'center' }}>상태</th>
+                <th style={{ ...s.th, textAlign: 'center' }}>관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.map(e => {
+                const ss = STATUS_STYLE[e.status] || STATUS_STYLE.NORMAL;
+                return (
+                  <tr key={e.equipment_id} style={s.tr}>
+                    <td style={s.tdCode}>{e.equipment_code}</td>
+                    <td style={s.tdName}>{e.name}</td>
+                    <td style={s.td}>
+                      <span style={s.typeBadge}>{TYPE_LABEL[e.type]}</span>
+                    </td>
+                    <td style={s.tdMono}>{e.min_capacity}~{e.max_capacity}kg</td>
+                    <td style={s.td}>{e.divisions}분할</td>
+                    <td style={{ ...s.td, textAlign: 'center' }}>
+                      <span style={{ ...s.statusBadge, background: ss.bg, color: ss.color, borderColor: ss.border }}>
+                        {STATUS_LABEL[e.status]}
+                      </span>
+                    </td>
+                    <td style={{ ...s.td, textAlign: 'center' }}>
+                      <button style={s.editBtn} onClick={() => router.push(`/admin/equipment/${e.equipment_id}`)}>
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {paginated.length === 0 && (
+                <tr><td colSpan={7} style={s.emptyRow}>
+                  <div style={s.emptyContent}>
+                    {Icons.settings({ size: 24, color: '#DDD' })}
+                    <span>등록된 기기가 없습니다</span>
+                  </div>
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {totalPages > 1 && (
+          <div style={s.pagination}>
+            <button style={{ ...s.pageBtn, opacity: page > 1 ? 1 : 0.3 }} disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              <button key={p} style={{ ...s.pageNum, ...(p === page ? s.pageNumActive : {}) }}
+                onClick={() => setPage(p)}>{p}</button>
+            ))}
+            <button style={{ ...s.pageBtn, opacity: page < totalPages ? 1 : 0.3 }} disabled={page >= totalPages}
+              onClick={() => setPage(p => p + 1)}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 18l6-6-6-6" /></svg>
+            </button>
+            <span style={s.pageInfo}>{filtered.length}대 중 {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filtered.length)}</span>
+          </div>
+        )}
       </div>
     </Layout>
   );
@@ -133,23 +200,43 @@ const s: Record<string, React.CSSProperties> = {
     cursor: 'pointer', boxShadow: '0 1px 3px rgba(177,31,57,0.25)',
   },
 
-  // ── 카테고리 그리드 ──
-  categoryGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 },
-  categoryCard: {
-    background: '#fff', borderRadius: 12, overflow: 'hidden',
+  // ── 통계 카드 ──
+  statsRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 12 },
+  statCard: {
+    background: '#fff', borderRadius: 10, padding: '14px 16px',
     border: '1px solid #EEEEEE', boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
   },
-  categoryHeader: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '14px 18px', borderBottom: '1px solid #F0F0F0',
+  statCardDark: {
+    background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.06)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
   },
-  categoryLeft: { display: 'flex', flexDirection: 'column', gap: 2 },
-  categoryTitle: { fontSize: 14, fontWeight: 700, color: '#0A0A0A' },
-  categoryDesc: { fontSize: 11, color: '#BBB' },
-  categoryStats: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 },
-  categoryCount: { fontSize: 18, fontWeight: 700, color: '#0A0A0A', fontFamily: "'Space Grotesk', sans-serif" },
-  categoryNormal: { fontSize: 10, color: '#999' },
-  categoryEmpty: { padding: '24px', textAlign: 'center', color: '#DDD', fontSize: 12 },
+  statTop: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 },
+  statIconWrap: {
+    width: 28, height: 28, borderRadius: 7, background: '#FDF2F4',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  statLabel: { fontSize: 12, color: '#999', fontWeight: 500 },
+  statValue: {
+    fontSize: 24, fontWeight: 700, color: '#0A0A0A',
+    fontFamily: "'Space Grotesk', sans-serif", letterSpacing: -0.5,
+    marginBottom: 4, display: 'flex', alignItems: 'baseline',
+  },
+  statUnit: { fontSize: 14, fontWeight: 500, marginLeft: 2, color: '#CCC' },
+  statSub: { fontSize: 11, color: '#CCC' },
+
+  // ── 탭 ──
+  tabRow: { display: 'flex', gap: 4, marginBottom: 10, background: '#fff', borderRadius: 10, padding: 4, border: '1px solid #EEEEEE' },
+  tab: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '7px 16px', border: 'none', background: 'transparent',
+    borderRadius: 7, fontSize: 13, fontWeight: 500, color: '#999', cursor: 'pointer',
+  },
+  tabActive: { background: '#0A0A0A', color: '#fff', fontWeight: 600 },
+  tabCount: {
+    fontSize: 10, fontWeight: 700, color: '#CCC', background: '#F0F0F0',
+    borderRadius: 10, padding: '1px 6px', minWidth: 18, textAlign: 'center',
+  },
+  tabCountActive: { color: '#fff', background: 'rgba(255,255,255,0.2)' },
 
   // ── 테이블 ──
   tableCard: {
