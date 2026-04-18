@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { supabase, supabaseAuth } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { signToken } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -10,10 +10,20 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: '이메일과 비밀번호를 입력해주세요.' }, { status: 400 });
     }
 
-    // Supabase Auth로 인증
-    const { data: authData, error: authError } = await supabaseAuth.auth.signInWithPassword({ email, password });
+    // Supabase Auth REST API로 직접 인증 (JS 클라이언트 세션 이슈 회피)
+    const authRes = await fetch(
+      `${process.env.SUPABASE_URL}/auth/v1/token?grant_type=password`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': process.env.SUPABASE_ANON_KEY!,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      }
+    );
 
-    if (authError || !authData.user) {
+    if (!authRes.ok) {
       return Response.json({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' }, { status: 401 });
     }
 
