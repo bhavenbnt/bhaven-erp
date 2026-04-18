@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
 
     let query = supabase
       .from('reservations')
-      .select('*, users!reservations_user_id_fkey(name, company_name), equipment(name), products(product_name)')
+      .select('*, users!reservations_user_id_fkey(name, company_name), equipment(name, type), products(product_name)')
       .order('scheduled_date', { ascending: true });
 
     if (status) query = query.eq('status', status);
