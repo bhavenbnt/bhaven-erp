@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    setUser(null);
+    window.location.href = '/login';
   };
 
   // loading 중에는 자식을 렌더하지 않음 — 각 페이지의 !user 체크가 리다이렉트하는 것 방지
