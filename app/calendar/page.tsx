@@ -61,7 +61,7 @@ export default function CalendarPage() {
     Promise.all([
       api.get(`/reservations/my?date_from=${start}&date_to=${end}`),
       api.get(`/holidays?year=${year}&month=${month + 1}`),
-      api.get(`/reservations/available-slots?start_date=${start}&end_date=${end}`),
+      api.get(`/reservations/available-slots?start_date=${start}&end_date=${end}${filterKg ? `&min_kg=${filterKg}` : ''}`),
     ]).then(([resvRes, holidayRes, slotsRes]) => {
       setReservations(resvRes.data.data || []);
       const hMap: Record<string, Holiday> = {};
@@ -70,7 +70,7 @@ export default function CalendarPage() {
       // 범위 응답: { "2026-04-01": { available: 20, total: 23 }, ... }
       setSlotsByDate(slotsRes.data.data || {});
     }).catch(() => {});
-  }, [year, month]);
+  }, [year, month, filterKg]);
 
   const showToast = (msg: string) => {
     setToast(msg);

@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const start_date = searchParams.get('start_date');
     const end_date = searchParams.get('end_date');
+    const min_kg = parseFloat(searchParams.get('min_kg') || '0');
 
     if (!start_date || !end_date) {
       return Response.json({ error: 'start_date와 end_date가 필요합니다.' }, { status: 400 });
@@ -48,7 +49,8 @@ export async function GET(req: NextRequest) {
           const available_capacity = eq.status === 'MAINTENANCE' ? 0 : eq.max_capacity - used;
           return { ...eq, used_capacity: used, available_capacity };
         })
-        .filter((eq) => eq.available_capacity > 0);
+        .filter((eq) => eq.available_capacity > 0)
+        .filter((eq) => min_kg <= 0 || eq.available_capacity >= min_kg);
       return Response.json({ status: 'success', data: slots });
     }
 
@@ -68,9 +70,11 @@ export async function GET(req: NextRequest) {
       let total = 0;
       for (const eq of equipment ?? []) {
         if (eq.status === 'MAINTENANCE') continue;
-        total++;
         const used = dateUsage[eq.equipment_id] ?? 0;
-        if (eq.max_capacity - used > 0) available++;
+        const remaining = eq.max_capacity - used;
+        if (min_kg > 0 && eq.max_capacity < min_kg) continue; // 기기 최대용량이 요청보다 작으면 제외
+        total++;
+        if (remaining > 0 && (min_kg <= 0 || remaining >= min_kg)) available++;
       }
       byDate[d] = { available, total };
     }
