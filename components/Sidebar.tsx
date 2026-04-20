@@ -61,7 +61,7 @@ export default function Sidebar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const notiRef = useRef<HTMLDivElement>(null);
 
-  const handleLogout = () => { logout(); router.push('/login'); };
+  const handleLogout = () => { logout(); window.location.href = '/login'; };
 
   const navItems = user?.role === 'admin'
     ? (user?.is_super ? SUPER_ADMIN_NAV : ADMIN_NAV)
