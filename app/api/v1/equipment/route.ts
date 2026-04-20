@@ -17,9 +17,7 @@ export async function GET(req: NextRequest) {
     const { data, error } = await query;
     if (error) throw error;
 
-    return new Response(JSON.stringify({ status: 'success', data }), {
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' },
-    });
+    return Response.json({ status: 'success', data });
   } catch (err) {
     console.error(err);
     return Response.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
