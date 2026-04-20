@@ -28,6 +28,7 @@ export default function AdminCalendar() {
   const [holidayDate, setHolidayDate] = useState('');
   const [holidayReason, setHolidayReason] = useState('');
   const [toast, setToast] = useState('');
+  const [holidayConfirm, setHolidayConfirm] = useState<{ count: number } | null>(null);
 
   useEffect(() => {
     if (!user) router.replace('/login');
@@ -93,9 +94,19 @@ export default function AdminCalendar() {
 
   const addHoliday = async () => {
     if (!holidayDate) return;
+
+    // 해당 날짜에 예약이 있는지 체크
+    if (!holidayConfirm) {
+      const dateReservs = reservations.filter(r => r.scheduled_date === holidayDate && r.status !== 'CANCELLED');
+      if (dateReservs.length > 0) {
+        setHolidayConfirm({ count: dateReservs.length });
+        return; // 확인 모달 표시
+      }
+    }
+
     try {
       await api.post('/holidays', { holiday_date: holidayDate, reason: holidayReason });
-      setHolidayDate(''); setHolidayReason(''); setShowHolidayForm(false);
+      setHolidayDate(''); setHolidayReason(''); setShowHolidayForm(false); setHolidayConfirm(null);
       setToast('휴무일이 등록되었습니다');
       setTimeout(() => setToast(''), 3000);
       loadData();
@@ -259,6 +270,23 @@ export default function AdminCalendar() {
         ))}
       </div>
 
+      {/* 휴무일 등록 확인 모달 */}
+      {holidayConfirm && (
+        <div style={s.overlay}>
+          <div style={s.confirmModal}>
+            <div style={s.confirmTitle}>예약이 있는 날짜입니다</div>
+            <p style={s.confirmSub}>
+              {holidayDate}에 <strong>{holidayConfirm.count}건</strong>의 예약이 있습니다.
+              휴무일로 등록하면 기존 예약은 관리자가 별도로 일정을 변경해야 합니다.
+            </p>
+            <div style={s.confirmBtns}>
+              <button style={s.confirmCancel} onClick={() => setHolidayConfirm(null)}>취소</button>
+              <button style={s.confirmOk} onClick={() => addHoliday()}>등록</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast && <div style={s.toast}>{toast}</div>}
     </Layout>
   );
@@ -363,6 +391,14 @@ const s: Record<string, React.CSSProperties> = {
   reservEquip: { fontWeight: 600, color: '#333' },
   reservStatus: { fontWeight: 600, fontSize: 11 },
   moreCount: { fontSize: 11, color: '#CCC', fontWeight: 500, paddingLeft: 4 },
+
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  confirmModal: { background: '#fff', borderRadius: 12, padding: '24px 28px', width: 420, display: 'flex', flexDirection: 'column', gap: 14, border: '1px solid #EEEEEE', boxShadow: '0 12px 40px rgba(0,0,0,0.15)' },
+  confirmTitle: { fontSize: 16, fontWeight: 700, color: '#0A0A0A' },
+  confirmSub: { fontSize: 13, color: '#666', margin: 0, lineHeight: 1.6 },
+  confirmBtns: { display: 'flex', gap: 8, justifyContent: 'flex-end' },
+  confirmCancel: { padding: '9px 20px', background: '#fff', color: '#666', border: '1px solid #EEEEEE', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
+  confirmOk: { padding: '9px 20px', background: '#B11F39', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 3px rgba(177,31,57,0.25)' },
 
   toast: {
     position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
