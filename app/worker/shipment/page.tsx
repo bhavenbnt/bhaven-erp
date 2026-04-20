@@ -11,12 +11,14 @@ const TABS = [
   { key: 'all', label: '전체' },
   { key: 'IN_PROGRESS', label: '생산 중' },
   { key: 'COMPLETED', label: '생산 완료' },
+  { key: 'SHIPPED', label: '출고 완료' },
 ];
 
-const STATUS_LABEL: Record<string, string> = { IN_PROGRESS: '생산 중', COMPLETED: '생산 완료' };
+const STATUS_LABEL: Record<string, string> = { IN_PROGRESS: '생산 중', COMPLETED: '생산 완료', SHIPPED: '출고 완료' };
 const STATUS_STYLE: Record<string, { color: string; bg: string; border: string }> = {
   IN_PROGRESS: { color: '#0A0A0A', bg: '#F0F0F0', border: '#E0E0E0' },
-  COMPLETED:   { color: '#888', bg: '#F8F8F8', border: '#EEE' },
+  COMPLETED:   { color: '#555', bg: '#F5F5F5', border: '#EBEBEB' },
+  SHIPPED:     { color: '#888', bg: '#F8F8F8', border: '#EEE' },
 };
 
 const PAGE_SIZE = 10;
@@ -38,16 +40,27 @@ export default function ShipmentList() {
 
   useEffect(() => {
     api.get('/reservations')
-      .then(({ data }: any) => setReservations(
-        (data.data || []).filter((r: any) => r.status === 'COMPLETED' || r.status === 'IN_PROGRESS')
-      ))
+      .then(async ({ data }: any) => {
+        const all = (data.data || []).filter((r: any) => r.status === 'COMPLETED' || r.status === 'IN_PROGRESS');
+        // 출고 완료 체크: shipments 테이블에 데이터가 있는 예약
+        const withShipment = await Promise.all(all.map(async (r: any) => {
+          try {
+            const { data: shipData } = await api.get(`/shipments/${r.reservation_id}`);
+            return { ...r, _shipped: !!(shipData as any)?.data };
+          } catch { return { ...r, _shipped: false }; }
+        }));
+        setReservations(withShipment);
+      })
       .catch(() => {});
   }, []);
 
   if (!user) return null;
 
+  const getDisplayStatus = (r: any) => r._shipped ? 'SHIPPED' : r.status;
+
   const filtered = reservations.filter((r: any) => {
-    if (tab !== 'all' && r.status !== tab) return false;
+    const ds = getDisplayStatus(r);
+    if (tab !== 'all' && ds !== tab) return false;
     if (dateFrom && r.scheduled_date < dateFrom) return false;
     if (dateTo && r.scheduled_date > dateTo) return false;
     if (search) {
@@ -62,7 +75,7 @@ export default function ShipmentList() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const handleTab = (key: string) => { setTab(key); setPage(1); };
-  const getCount = (key: string) => key === 'all' ? reservations.length : reservations.filter(r => r.status === key).length;
+  const getCount = (key: string) => key === 'all' ? reservations.length : reservations.filter(r => getDisplayStatus(r) === key).length;
 
   return (
     <Layout
@@ -146,12 +159,17 @@ export default function ShipmentList() {
                     <td style={s.tdMuted}>{r.equipment?.name || '-'}</td>
                     <td style={s.td}>{new Date(r.scheduled_date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })}</td>
                     <td style={{ ...s.td, textAlign: 'center' }}>
-                      <span style={{ ...s.statusBadge, background: ss.bg, color: ss.color, borderColor: ss.border }}>
-                        {STATUS_LABEL[r.status] || r.status}
-                      </span>
+                      {(() => { const ds = getDisplayStatus(r); const st = STATUS_STYLE[ds] || STATUS_STYLE.IN_PROGRESS; return (
+                        <span style={{ ...s.statusBadge, background: st.bg, color: st.color, borderColor: st.border }}>
+                          {STATUS_LABEL[ds] || ds}
+                        </span>
+                      ); })()}
                     </td>
                     <td style={{ ...s.td, textAlign: 'center' }}>
-                      <button style={s.shipBtn} onClick={() => router.push(`/worker/shipment/${r.reservation_id}`)}>출고 처리</button>
+                      {r._shipped
+                        ? <span style={{ fontSize: 11, color: '#BBB' }}>완료</span>
+                        : <button style={s.shipBtn} onClick={() => router.push(`/worker/shipment/${r.reservation_id}`)}>출고 처리</button>
+                      }
                     </td>
                   </tr>
                 );
