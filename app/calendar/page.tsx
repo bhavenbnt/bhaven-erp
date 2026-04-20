@@ -24,25 +24,27 @@ interface Holiday { holiday_date: string; reason: string; }
 
 // 가용 상태 계산
 function getAvailability(info: { available: number; total: number; canFit?: boolean } | undefined, hasFilter: boolean) {
-  if (!info || info.total === 0) return { count: 0, level: 'none' as const, label: '' };
+  if (!info || info.total === 0) return { level: 'none' as const, label: '' };
 
-  // 필터가 있으면 canFit (분할 배정 시뮬레이션 결과) 기준
   if (hasFilter) {
-    if (info.canFit === false || info.available === 0) return { count: 0, level: 'none' as const, label: '불가' };
-    if (info.available <= 3) return { count: info.available, level: 'limited' as const, label: '가능 (여유 적음)' };
-    return { count: info.available, level: 'available' as const, label: '가능' };
+    // 필터 있으면: 가능/불가만
+    if (info.canFit === false || info.available === 0) return { level: 'busy' as const, label: '불가' };
+    return { level: 'free' as const, label: '가능' };
   }
 
-  // 필터 없으면 기존 로직
-  if (info.available === 0) return { count: 0, level: 'none' as const, label: '마감' };
-  if (info.available <= 2) return { count: info.available, level: 'limited' as const, label: `${info.available}대 가능` };
-  return { count: info.available, level: 'available' as const, label: `${info.available}대 가능` };
+  // 필터 없으면: 가용률 히트맵
+  const ratio = info.available / info.total;
+  if (info.available === 0) return { level: 'busy' as const, label: '' };
+  if (ratio < 0.3) return { level: 'busy' as const, label: '' };
+  if (ratio < 0.7) return { level: 'moderate' as const, label: '' };
+  return { level: 'free' as const, label: '' };
 }
 
-const AVAIL_COLOR: Record<string, { color: string; bg: string; border: string }> = {
-  available: { color: '#16A34A', bg: '#F0FDF4', border: '#BBF7D0' },
-  limited:   { color: '#D97706', bg: '#FFFBEB', border: '#FDE68A' },
-  none:      { color: '#CCC', bg: '#FAFAFA', border: '#F0F0F0' },
+const AVAIL_COLOR: Record<string, { dot: string; bg: string }> = {
+  free:     { dot: '#16A34A', bg: '#F0FDF4' },
+  moderate: { dot: '#D97706', bg: '#FFFBEB' },
+  busy:     { dot: '#DC2626', bg: '#FEF2F2' },
+  none:     { dot: '#CCC', bg: '#fff' },
 };
 
 export default function CalendarPage() {
@@ -214,10 +216,18 @@ export default function CalendarPage() {
           <button style={st.todayBtn} onClick={() => setCurrent(new Date())}>오늘</button>
         </div>
         <div style={st.legend}>
-          {filterKg && <>
-            <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#16A34A' }} />가능</span>
-            <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#D97706' }} />여유 적음</span>
-          </>}
+          {filterKg ? (
+            <>
+              <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#16A34A' }} />가능</span>
+              <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#DC2626' }} />불가</span>
+            </>
+          ) : (
+            <>
+              <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#16A34A' }} />여유</span>
+              <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#D97706' }} />보통</span>
+              <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#DC2626' }} />혼잡</span>
+            </>
+          )}
           <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#DDD' }} />불가</span>
         </div>
       </div>
@@ -239,18 +249,18 @@ export default function CalendarPage() {
               const isHoliday = dateStr ? !!holidays[dateStr] : false;
               const slotInfo = dateStr ? slotsByDate[dateStr] : undefined;
               const avail = day && !isPast && !isHoliday ? getAvailability(slotInfo, !!filterKg) : null;
-              const ac = avail ? AVAIL_COLOR[avail.level] : null;
-              // 필터 없으면 미래 날짜는 모두 클릭 가능, 필터 있으면 가능한 날만
-              const isClickable = day !== null && !isPast && !isHoliday && (filterKg ? avail?.level !== 'none' : true);
+              const ac = avail ? AVAIL_COLOR[avail.level] : AVAIL_COLOR.none;
+              const isClickable = day !== null && !isPast && !isHoliday && (filterKg ? avail?.level !== 'busy' : true);
+              const hasMyReserv = dayReservs.length > 0;
 
               return (
                 <div
                   key={di}
                   style={{
                     ...st.cell,
-                    background: isHoliday ? '#FAFAFA' : isToday(day) ? '#FDF8F9' : '#fff',
+                    background: isHoliday ? '#FAFAFA' : isToday(day) ? '#FDF8F9' : (avail && avail.level !== 'none' ? ac.bg : '#fff'),
                     cursor: isClickable ? 'pointer' : 'default',
-                    opacity: day === null ? 0.15 : isPast ? 0.3 : (filterKg && avail?.level === 'none' && !isHoliday ? 0.4 : 1),
+                    opacity: day === null ? 0.15 : isPast ? 0.3 : (filterKg && avail?.level === 'busy' && !isHoliday ? 0.35 : 1),
                     borderRight: di < 6 ? '1px solid #F0F0F0' : 'none',
                     borderBottom: wi < weeks.length - 1 ? '1px solid #F0F0F0' : 'none',
                   }}
@@ -265,24 +275,24 @@ export default function CalendarPage() {
                           ...(isToday(day) ? st.todayNum : {}),
                         }}>{day}</span>
                         {isHoliday && <span style={st.holidayTag}>휴무</span>}
+                        {/* 필터 있을 때: 가능/불가 태그 */}
                         {filterKg && avail && !isHoliday && avail.label && (
-                          <span style={{ ...st.availTag, color: ac!.color, background: ac!.bg, border: `1px solid ${ac!.border}` }}>
+                          <span style={{ ...st.availTag, color: ac.dot, background: ac.bg, border: `1px solid ${ac.dot}30` }}>
                             {avail.label}
                           </span>
                         )}
+                        {/* 필터 없을 때: 가용률 dot */}
+                        {!filterKg && avail && avail.level !== 'none' && !isHoliday && !isPast && (
+                          <span style={{ ...st.availDot, background: ac.dot }} />
+                        )}
                       </div>
-                      <div style={st.reservList}>
-                        {dayReservs.slice(0, 2).map((r: any) => {
-                          const ss = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
-                          return (
-                            <div key={r.reservation_id} style={{ ...st.myReserv, borderLeftColor: ss.color }}>
-                              <span style={st.myReservKg}>{r.kg_amount}kg</span>
-                              <span style={{ ...st.myReservStatus, color: ss.color }}>{STATUS_LABEL[r.status]}</span>
-                            </div>
-                          );
-                        })}
-                        {dayReservs.length > 2 && <span style={st.moreCount}>+{dayReservs.length - 2}</span>}
-                      </div>
+                      {/* 내 예약 뱃지 */}
+                      {hasMyReserv && (
+                        <div style={st.myReservBadge}>
+                          <span style={st.myReservDot} />
+                          <span style={st.myReservText}>내 예약 {dayReservs.length}건</span>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -385,16 +395,11 @@ const st: Record<string, React.CSSProperties> = {
     width: 26, height: 26, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
   },
   holidayTag: { fontSize: 11, fontWeight: 600, color: '#999', background: '#F0F0F0', borderRadius: 3, padding: '1px 4px', border: '1px solid #E8E8E8' },
-  availTag: { fontSize: 11, fontWeight: 600, borderRadius: 3, padding: '1px 5px', marginLeft: 'auto' },
-
-  reservList: { display: 'flex', flexDirection: 'column', gap: 2, flex: 1 },
-  myReserv: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '3px 6px', borderRadius: 3, background: '#FAFAFA', borderLeft: '2px solid #CCC', fontSize: 12,
-  },
-  myReservKg: { fontWeight: 600, color: '#333', fontFamily: "'Space Grotesk', sans-serif" },
-  myReservStatus: { fontWeight: 600, fontSize: 11 },
-  moreCount: { fontSize: 11, color: '#CCC', fontWeight: 500, paddingLeft: 3 },
+  availTag: { fontSize: 10, fontWeight: 600, borderRadius: 4, padding: '2px 7px', marginLeft: 'auto' },
+  availDot: { width: 7, height: 7, borderRadius: '50%', marginLeft: 'auto', flexShrink: 0 },
+  myReservBadge: { display: 'flex', alignItems: 'center', gap: 4, marginTop: 'auto' },
+  myReservDot: { width: 5, height: 5, borderRadius: '50%', background: '#B11F39', flexShrink: 0 },
+  myReservText: { fontSize: 10, color: '#B11F39', fontWeight: 600 },
 
   toast: {
     position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
