@@ -35,8 +35,15 @@ export default function InquiryDetail() {
   );
 
   return (
-    <Layout title="문의 상세" action={
-      <button onClick={() => router.push('/inquiries')} style={styles.backBtn}>← 문의 목록</button>
+    <Layout title="" action={
+      <div style={styles.topBar}>
+        <div style={styles.topLeft}>
+          <button style={styles.backBtn} onClick={() => router.push('/inquiries')}>
+            <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
+          <h1 style={styles.pageTitle}>문의 상세</h1>
+        </div>
+      </div>
     }>
       <div style={styles.grid}>
         {/* 좌측: 내 문의 내용 */}
@@ -100,7 +107,10 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  backBtn: { padding: '7px 14px', background: 'transparent', border: '1px solid #e0e0e0', borderRadius: 6, fontSize: 13, cursor: 'pointer', color: '#666' },
+  topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
+  topLeft: { display: 'flex', alignItems: 'center', gap: 10 },
+  backBtn: { width: 30, height: 30, border: '1px solid #EEEEEE', background: '#fff', borderRadius: 7, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' },
+  pageTitle: { fontSize: 18, fontWeight: 700, color: '#0A0A0A', margin: 0, letterSpacing: -0.3 },
   grid: { display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 },
   left: { display: 'flex', flexDirection: 'column', gap: 16 },
   right: {},
