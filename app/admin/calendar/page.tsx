@@ -181,7 +181,7 @@ export default function AdminCalendar() {
               <option value="small">소형</option>
               <option value="medium">중형</option>
               <option value="large">대형</option>
-              <option value="custom">직접 입력</option>
+              <option value="custom">기타</option>
             </select>
           </div>
           <div style={s.legend}>

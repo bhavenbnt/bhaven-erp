@@ -10,7 +10,7 @@ const TYPES = [
   { key: 'small', label: '소형', desc: '1~10kg, 4분할' },
   { key: 'medium', label: '중형', desc: '10~20kg, 단일' },
   { key: 'large', label: '대형', desc: '25~60kg, 단일' },
-  { key: 'custom', label: '직접 입력', desc: '용량/분할 수동 설정' },
+  { key: 'custom', label: '기타', desc: '용량/분할 수동 설정' },
 ];
 
 export default function EquipmentNew() {
@@ -147,7 +147,7 @@ export default function EquipmentNew() {
         <div style={s.footer}>
           <div style={s.hint}>
             {Icons.settings({ size: 12, color: '#BBB' })}
-            <span>소형/중형/대형은 용량 고정, 직접 입력은 자유 설정</span>
+            <span>소형/중형/대형은 용량 고정, 기타는 자유 설정</span>
           </div>
           <div style={s.btnRow}>
             <button style={s.cancelBtn} onClick={() => router.push('/admin/equipment')}>취소</button>

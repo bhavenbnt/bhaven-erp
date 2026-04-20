@@ -148,7 +148,7 @@ export default function WorkerDashboard() {
               { key: 'small', label: '소형' },
               { key: 'medium', label: '중형' },
               { key: 'large', label: '대형' },
-              { key: 'custom', label: '직접입력' },
+              { key: 'custom', label: '기타' },
             ].map(f => {
               const count = getTypeCount(f.key);
               const active = equipFilter === f.key;
