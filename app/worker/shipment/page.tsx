@@ -39,19 +39,15 @@ export default function ShipmentList() {
   }, [user, router]);
 
   useEffect(() => {
-    api.get('/reservations')
-      .then(async ({ data }: any) => {
-        const all = (data.data || []).filter((r: any) => r.status === 'COMPLETED' || r.status === 'IN_PROGRESS');
-        // 출고 완료 체크: shipments 테이블에 데이터가 있는 예약
-        const withShipment = await Promise.all(all.map(async (r: any) => {
-          try {
-            const { data: shipData } = await api.get(`/shipments/${r.reservation_id}`);
-            return { ...r, _shipped: !!(shipData as any)?.data };
-          } catch { return { ...r, _shipped: false }; }
-        }));
-        setReservations(withShipment);
-      })
-      .catch(() => {});
+    Promise.all([
+      api.get('/reservations'),
+      api.get('/shipments'),
+    ]).then(([resvRes, shipRes]: any[]) => {
+      const all = (resvRes.data.data || []).filter((r: any) => r.status === 'COMPLETED' || r.status === 'IN_PROGRESS');
+      const shippedIds = new Set((shipRes.data.data || []).map((s: any) => s.reservation_id));
+      const withShipment = all.map((r: any) => ({ ...r, _shipped: shippedIds.has(r.reservation_id) }));
+      setReservations(withShipment);
+    }).catch(() => {});
   }, []);
 
   if (!user) return null;

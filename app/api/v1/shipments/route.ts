@@ -3,6 +3,24 @@ import { supabase } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth';
 import { createNotification } from '@/lib/notify';
 
+export async function GET(req: NextRequest) {
+  try {
+    const result = requireAuth(req, 'worker', 'admin');
+    if ('error' in result) return result.error;
+
+    const { data, error } = await supabase
+      .from('shipments')
+      .select('reservation_id, shipped_at');
+
+    if (error) throw error;
+
+    return Response.json({ status: 'success', data: data || [] });
+  } catch (err) {
+    console.error(err);
+    return Response.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const result = requireAuth(req, 'worker', 'admin');

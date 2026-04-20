@@ -38,7 +38,7 @@ export default function AdminDashboard() {
     const today = new Date().toISOString().split('T')[0];
     const monthStart = today.slice(0, 7) + '-01';
     const [resvRes, equipRes] = await Promise.all([
-      api.get('/reservations').catch(() => ({ data: { data: [] } })),
+      api.get(`/reservations?date_from=${monthStart}`).catch(() => ({ data: { data: [] } })),
       api.get('/equipment').catch(() => ({ data: { data: [] } })),
     ]);
     const all: any[] = (resvRes as any).data.data || [];

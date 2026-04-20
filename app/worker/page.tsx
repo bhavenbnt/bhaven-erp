@@ -37,35 +37,31 @@ export default function WorkerDashboard() {
   }, [user, router]);
 
   const load = () => {
-    // 선택 날짜
-    api.get(`/reservations?date_from=${selectedDate}&date_to=${selectedDate}`)
-      .then(({ data }: any) => setTodayList((data.data || []).filter((r: any) => r.status !== 'CANCELLED')))
-      .catch(() => {});
-
-    // 내일
     const tmr = new Date(today); tmr.setDate(tmr.getDate() + 1);
     const tmrStr = tmr.toISOString().split('T')[0];
-    api.get(`/reservations?date_from=${tmrStr}&date_to=${tmrStr}`)
-      .then(({ data }: any) => setTomorrowCount((data.data || []).filter((r: any) => r.status !== 'CANCELLED').length))
-      .catch(() => {});
-
-    // 이번 주 (일~토)
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay());
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
-    api.get(`/reservations?date_from=${weekStart.toISOString().split('T')[0]}&date_to=${weekEnd.toISOString().split('T')[0]}`)
-      .then(({ data }: any) => {
-        const all = (data.data || []).filter((r: any) => r.status !== 'CANCELLED');
-        const week = Array.from({ length: 7 }, (_, i) => {
-          const d = new Date(weekStart);
-          d.setDate(weekStart.getDate() + i);
-          const ds = d.toISOString().split('T')[0];
-          const items = all.filter((r: any) => r.scheduled_date === ds);
-          return { date: d, count: items.length, kg: items.reduce((s: number, r: any) => s + (r.kg_amount || 0), 0) };
-        });
-        setWeekData(week);
-      }).catch(() => {});
+
+    Promise.all([
+      api.get(`/reservations?date_from=${selectedDate}&date_to=${selectedDate}`).catch(() => ({ data: { data: [] } })),
+      api.get(`/reservations?date_from=${tmrStr}&date_to=${tmrStr}`).catch(() => ({ data: { data: [] } })),
+      api.get(`/reservations?date_from=${weekStart.toISOString().split('T')[0]}&date_to=${weekEnd.toISOString().split('T')[0]}`).catch(() => ({ data: { data: [] } })),
+    ]).then(([todayRes, tmrRes, weekRes]: any[]) => {
+      setTodayList((todayRes.data.data || []).filter((r: any) => r.status !== 'CANCELLED'));
+      setTomorrowCount((tmrRes.data.data || []).filter((r: any) => r.status !== 'CANCELLED').length);
+
+      const all = (weekRes.data.data || []).filter((r: any) => r.status !== 'CANCELLED');
+      const week = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(weekStart);
+        d.setDate(weekStart.getDate() + i);
+        const ds = d.toISOString().split('T')[0];
+        const items = all.filter((r: any) => r.scheduled_date === ds);
+        return { date: d, count: items.length, kg: items.reduce((s: number, r: any) => s + (r.kg_amount || 0), 0) };
+      });
+      setWeekData(week);
+    });
   };
 
   useEffect(() => { load(); setPage(1); }, [selectedDate]);
