@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server';
-import { supabase, supabaseAuth } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth';
 
-// POST /api/v1/admin/create-customer — 관리자가 고객 계정 생성
 export async function POST(req: NextRequest) {
   try {
     const result = requireAuth(req, 'admin');
@@ -17,7 +16,6 @@ export async function POST(req: NextRequest) {
     if (!email || !password || !name) {
       return Response.json({ error: '이메일, 비밀번호, 담당자명은 필수입니다.' }, { status: 400 });
     }
-
     if (password.length < 8) {
       return Response.json({ error: '비밀번호는 8자 이상이어야 합니다.' }, { status: 400 });
     }
@@ -25,28 +23,29 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: '비밀번호는 영문과 숫자를 포함해야 합니다.' }, { status: 400 });
     }
 
-    // 1. Supabase Auth에 유저 생성 (이메일 인증 완료 상태)
-    const { error: authError } = await supabaseAuth.auth.signUp({
-      email,
-      password,
-      options: { data: { role: 'customer' } },
+    // 1. Supabase Auth Admin API로 유저 생성
+    const authRes = await fetch(`${process.env.SUPABASE_URL}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: {
+        'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { role: 'customer' } }),
+      cache: 'no-store',
     });
 
-    // signUp은 이미 존재해도 에러를 안 줄 수 있음 — public.users에서 중복 체크
-    if (authError) {
-      return Response.json({ error: authError.message }, { status: 400 });
+    if (!authRes.ok) {
+      const err = await authRes.json().catch(() => ({}));
+      return Response.json({ error: err.msg || '계정 생성에 실패했습니다.' }, { status: 400 });
     }
 
-    // 2. public.users에 비즈니스 데이터 저장
+    // 2. public.users에 저장
     const { data, error } = await supabase
       .from('users')
       .insert({
-        email,
-        password: '-', // Supabase Auth가 관리
-        name,
-        role: 'customer',
-        is_active: true,
-        is_approved: true,
+        email, password: '-', name, role: 'customer',
+        is_active: true, is_approved: true,
         company_name: company_name || null,
         contact_info: contact_info || null,
       })
@@ -54,9 +53,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      if (error.code === '23505') {
-        return Response.json({ error: '이미 등록된 이메일입니다.' }, { status: 409 });
-      }
+      if (error.code === '23505') return Response.json({ error: '이미 등록된 이메일입니다.' }, { status: 409 });
       throw error;
     }
 

@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server';
-import { supabase, supabaseAuth } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth';
 
-// POST /api/v1/admin/create-employee — 슈퍼관리자가 직원 계정 생성
 export async function POST(req: NextRequest) {
   try {
     const result = requireAuth(req, 'admin');
@@ -27,14 +26,24 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: '비밀번호는 영문과 숫자를 포함해야 합니다.' }, { status: 400 });
     }
 
-    // 1. Supabase Auth
-    const { error: authError } = await supabaseAuth.auth.signUp({
-      email, password,
-      options: { data: { role } },
+    // 1. Supabase Auth Admin API로 유저 생성
+    const authRes = await fetch(`${process.env.SUPABASE_URL}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: {
+        'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { role } }),
+      cache: 'no-store',
     });
-    if (authError) return Response.json({ error: authError.message }, { status: 400 });
 
-    // 2. public.users
+    if (!authRes.ok) {
+      const err = await authRes.json().catch(() => ({}));
+      return Response.json({ error: err.msg || '계정 생성에 실패했습니다.' }, { status: 400 });
+    }
+
+    // 2. public.users에 저장
     const { data, error } = await supabase
       .from('users')
       .insert({
