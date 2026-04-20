@@ -126,11 +126,13 @@ export default function CalendarPage() {
     if (holidays[dateStr]) { showToast(`휴무일입니다${holidays[dateStr].reason ? ` — ${holidays[dateStr].reason}` : ''}`); return; }
     const isPast = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (isPast) return;
-    const slotInfo = slotsByDate[dateStr];
-    const avail = getAvailability(slotInfo, !!filterKg);
-    if (avail.level === 'none') {
-      showToast(filterKg ? `${filterKg}kg를 처리할 수 있는 기기가 없습니다` : '해당 날짜는 모든 기기가 마감되었습니다');
-      return;
+    if (filterKg) {
+      const slotInfo = slotsByDate[dateStr];
+      const avail = getAvailability(slotInfo, true);
+      if (avail.level === 'none') {
+        showToast(`${filterKg}kg를 처리할 수 있는 기기가 없습니다`);
+        return;
+      }
     }
     const query = filterKg ? `?date=${dateStr}&kg=${filterKg}` : `?date=${dateStr}`;
     router.push(`/reservation/new${query}`);
@@ -212,8 +214,10 @@ export default function CalendarPage() {
           <button style={st.todayBtn} onClick={() => setCurrent(new Date())}>오늘</button>
         </div>
         <div style={st.legend}>
-          <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#16A34A' }} />가능</span>
-          <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#D97706' }} />잔여 적음</span>
+          {filterKg && <>
+            <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#16A34A' }} />가능</span>
+            <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#D97706' }} />여유 적음</span>
+          </>}
           <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#DDD' }} />불가</span>
         </div>
       </div>
@@ -236,7 +240,8 @@ export default function CalendarPage() {
               const slotInfo = dateStr ? slotsByDate[dateStr] : undefined;
               const avail = day && !isPast && !isHoliday ? getAvailability(slotInfo, !!filterKg) : null;
               const ac = avail ? AVAIL_COLOR[avail.level] : null;
-              const isClickable = day !== null && !isPast && !isHoliday && avail?.level !== 'none';
+              // 필터 없으면 미래 날짜는 모두 클릭 가능, 필터 있으면 가능한 날만
+              const isClickable = day !== null && !isPast && !isHoliday && (filterKg ? avail?.level !== 'none' : true);
 
               return (
                 <div
@@ -245,7 +250,7 @@ export default function CalendarPage() {
                     ...st.cell,
                     background: isHoliday ? '#FAFAFA' : isToday(day) ? '#FDF8F9' : '#fff',
                     cursor: isClickable ? 'pointer' : 'default',
-                    opacity: day === null ? 0.15 : isPast ? 0.3 : (avail?.level === 'none' && !isHoliday ? 0.5 : 1),
+                    opacity: day === null ? 0.15 : isPast ? 0.3 : (filterKg && avail?.level === 'none' && !isHoliday ? 0.4 : 1),
                     borderRight: di < 6 ? '1px solid #F0F0F0' : 'none',
                     borderBottom: wi < weeks.length - 1 ? '1px solid #F0F0F0' : 'none',
                   }}
@@ -260,7 +265,7 @@ export default function CalendarPage() {
                           ...(isToday(day) ? st.todayNum : {}),
                         }}>{day}</span>
                         {isHoliday && <span style={st.holidayTag}>휴무</span>}
-                        {avail && !isHoliday && avail.label && (
+                        {filterKg && avail && !isHoliday && avail.label && (
                           <span style={{ ...st.availTag, color: ac!.color, background: ac!.bg, border: `1px solid ${ac!.border}` }}>
                             {avail.label}
                           </span>
