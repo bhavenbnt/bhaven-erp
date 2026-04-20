@@ -31,8 +31,8 @@ function getAvailability(info: { available: number; total: number } | undefined)
 }
 
 const AVAIL_COLOR: Record<string, { color: string; bg: string; border: string }> = {
-  available: { color: '#0A0A0A', bg: '#F0F0F0', border: '#E0E0E0' },
-  limited:   { color: '#B11F39', bg: '#FDF2F4', border: '#F5D0D6' },
+  available: { color: '#16A34A', bg: '#F0FDF4', border: '#BBF7D0' },
+  limited:   { color: '#D97706', bg: '#FFFBEB', border: '#FDE68A' },
   none:      { color: '#CCC', bg: '#FAFAFA', border: '#F0F0F0' },
 };
 
@@ -203,8 +203,8 @@ export default function CalendarPage() {
           <button style={st.todayBtn} onClick={() => setCurrent(new Date())}>오늘</button>
         </div>
         <div style={st.legend}>
-          <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#0A0A0A' }} />가능</span>
-          <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#B11F39' }} />잔여 적음</span>
+          <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#16A34A' }} />가능</span>
+          <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#D97706' }} />잔여 적음</span>
           <span style={st.legendItem}><span style={{ ...st.legendDot, background: '#DDD' }} />불가</span>
         </div>
       </div>
