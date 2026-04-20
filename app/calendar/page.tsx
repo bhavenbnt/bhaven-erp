@@ -22,9 +22,18 @@ const STATUS_LABEL: Record<string, string> = {
 interface EquipmentSlot { equipment_id: number; name: string; type: string; available_capacity: number; max_capacity: number; }
 interface Holiday { holiday_date: string; reason: string; }
 
-// 가용 상태 계산 (새 API 형식: { available, total })
-function getAvailability(info: { available: number; total: number } | undefined) {
+// 가용 상태 계산
+function getAvailability(info: { available: number; total: number; canFit?: boolean } | undefined, hasFilter: boolean) {
   if (!info || info.total === 0) return { count: 0, level: 'none' as const, label: '' };
+
+  // 필터가 있으면 canFit (분할 배정 시뮬레이션 결과) 기준
+  if (hasFilter) {
+    if (info.canFit === false || info.available === 0) return { count: 0, level: 'none' as const, label: '불가' };
+    if (info.available <= 3) return { count: info.available, level: 'limited' as const, label: '가능 (여유 적음)' };
+    return { count: info.available, level: 'available' as const, label: '가능' };
+  }
+
+  // 필터 없으면 기존 로직
   if (info.available === 0) return { count: 0, level: 'none' as const, label: '마감' };
   if (info.available <= 2) return { count: info.available, level: 'limited' as const, label: `${info.available}대 가능` };
   return { count: info.available, level: 'available' as const, label: `${info.available}대 가능` };
@@ -39,7 +48,7 @@ const AVAIL_COLOR: Record<string, { color: string; bg: string; border: string }>
 export default function CalendarPage() {
   const [current, setCurrent] = useState(new Date());
   const [reservations, setReservations] = useState<any[]>([]);
-  const [slotsByDate, setSlotsByDate] = useState<Record<string, { available: number; total: number }>>({});
+  const [slotsByDate, setSlotsByDate] = useState<Record<string, { available: number; total: number; canFit?: boolean }>>({});
   const [holidays, setHolidays] = useState<Record<string, Holiday>>({});
   const [filterKg, setFilterKg] = useState<number | null>(null);
   const [customKg, setCustomKg] = useState('');
@@ -118,7 +127,7 @@ export default function CalendarPage() {
     const isPast = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (isPast) return;
     const slotInfo = slotsByDate[dateStr];
-    const avail = getAvailability(slotInfo);
+    const avail = getAvailability(slotInfo, !!filterKg);
     if (avail.level === 'none') {
       showToast(filterKg ? `${filterKg}kg를 처리할 수 있는 기기가 없습니다` : '해당 날짜는 모든 기기가 마감되었습니다');
       return;
@@ -225,7 +234,7 @@ export default function CalendarPage() {
               const dateStr = day ? `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
               const isHoliday = dateStr ? !!holidays[dateStr] : false;
               const slotInfo = dateStr ? slotsByDate[dateStr] : undefined;
-              const avail = day && !isPast && !isHoliday ? getAvailability(slotInfo) : null;
+              const avail = day && !isPast && !isHoliday ? getAvailability(slotInfo, !!filterKg) : null;
               const ac = avail ? AVAIL_COLOR[avail.level] : null;
               const isClickable = day !== null && !isPast && !isHoliday && avail?.level !== 'none';
 

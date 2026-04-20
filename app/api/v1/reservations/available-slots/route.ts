@@ -2,6 +2,26 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth';
 
+// 분할 배정 시뮬레이션: 주어진 kg를 가용 기기들에 분배할 수 있는지 판단
+function canAssign(requestKg: number, availableEquipment: { max_capacity: number; remaining: number }[]): boolean {
+  if (requestKg <= 0) return true;
+  if (availableEquipment.length === 0) return false;
+
+  // 잔여 용량 내림차순 정렬 (큰 기기부터 채움)
+  const sorted = [...availableEquipment]
+    .filter(eq => eq.remaining > 0)
+    .sort((a, b) => b.remaining - a.remaining);
+
+  let remaining = requestKg;
+  for (const eq of sorted) {
+    if (remaining <= 0) break;
+    const fill = Math.min(remaining, eq.remaining);
+    remaining -= fill;
+  }
+
+  return remaining <= 0;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const authResult = requireAuth(req);
@@ -32,7 +52,6 @@ export async function GET(req: NextRequest) {
 
     if (resError) throw resError;
 
-    // 날짜별 + 기기별 사용량 맵
     const usageByDate: Record<string, Record<number, number>> = {};
     for (const res of reservations ?? []) {
       const d = res.scheduled_date;
@@ -40,7 +59,7 @@ export async function GET(req: NextRequest) {
       usageByDate[d][res.equipment_id] = (usageByDate[d][res.equipment_id] ?? 0) + (res.kg_amount ?? 0);
     }
 
-    // 단일 날짜 요청 (기존 호환) vs 범위 요청
+    // 단일 날짜 요청 (기존 호환)
     if (start_date === end_date) {
       const dateUsage = usageByDate[start_date] || {};
       const slots = (equipment ?? [])
@@ -49,12 +68,11 @@ export async function GET(req: NextRequest) {
           const available_capacity = eq.status === 'MAINTENANCE' ? 0 : eq.max_capacity - used;
           return { ...eq, used_capacity: used, available_capacity };
         })
-        .filter((eq) => eq.available_capacity > 0)
-        .filter((eq) => min_kg <= 0 || eq.available_capacity >= min_kg);
+        .filter((eq) => eq.available_capacity > 0);
       return Response.json({ status: 'success', data: slots });
     }
 
-    // 범위 요청: 날짜별 가용 기기 수 반환
+    // 범위 요청: 날짜별 가용 판단
     const dates: string[] = [];
     const cur = new Date(start_date + 'T00:00:00');
     const endD = new Date(end_date + 'T00:00:00');
@@ -63,20 +81,28 @@ export async function GET(req: NextRequest) {
       cur.setDate(cur.getDate() + 1);
     }
 
-    const byDate: Record<string, { available: number; total: number }> = {};
+    const byDate: Record<string, { available: number; total: number; canFit?: boolean }> = {};
     for (const d of dates) {
       const dateUsage = usageByDate[d] || {};
-      let available = 0;
-      let total = 0;
-      for (const eq of equipment ?? []) {
-        if (eq.status === 'MAINTENANCE') continue;
-        const used = dateUsage[eq.equipment_id] ?? 0;
-        const remaining = eq.max_capacity - used;
-        if (min_kg > 0 && eq.max_capacity < min_kg) continue; // 기기 최대용량이 요청보다 작으면 제외
-        total++;
-        if (remaining > 0 && (min_kg <= 0 || remaining >= min_kg)) available++;
+
+      // 각 기기의 잔여 용량 계산
+      const eqList = (equipment ?? [])
+        .filter(eq => eq.status !== 'MAINTENANCE')
+        .map(eq => ({
+          max_capacity: eq.max_capacity,
+          remaining: eq.max_capacity - (dateUsage[eq.equipment_id] ?? 0),
+        }));
+
+      const totalEquip = eqList.length;
+      const availableEquip = eqList.filter(eq => eq.remaining > 0).length;
+
+      if (min_kg > 0) {
+        // 분할 배정 시뮬레이션: 요청 kg를 분배할 수 있는지
+        const canFit = canAssign(min_kg, eqList);
+        byDate[d] = { available: canFit ? availableEquip : 0, total: totalEquip, canFit };
+      } else {
+        byDate[d] = { available: availableEquip, total: totalEquip };
       }
-      byDate[d] = { available, total };
     }
 
     return Response.json({ status: 'success', data: byDate });
