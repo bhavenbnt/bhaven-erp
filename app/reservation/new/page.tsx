@@ -13,7 +13,10 @@ const PRODUCT_TYPES = [
   { key: 'extract', label: '원액' },
   { key: 'can', label: '캔' },
 ];
-const CONTAINERS = ['500ml', '1L', '2L'];
+const CONTAINERS: Record<string, string[]> = {
+  extract: ['500ml', '1L', '2L'],
+  can: ['235ml', '330ml'],
+};
 
 // 장비 스펙 (BRIEF.md 기준)
 const EQUIP_SPEC = [
@@ -174,14 +177,14 @@ function ReservationNewContent() {
                 <div style={st.segRow}>
                   {PRODUCT_TYPES.map(t => (
                     <button key={t.key} style={{ ...st.seg, ...(form.product_type === t.key ? st.segOn : {}) }}
-                      onClick={() => set('product_type')(t.key)}>{t.label}</button>
+                      onClick={() => { set('product_type')(t.key); set('container_size')(CONTAINERS[t.key][0]); }}>{t.label}</button>
                   ))}
                 </div>
               </div>
               <div style={st.fieldGroup}>
                 <label style={st.label}>용기</label>
                 <div style={st.segRow}>
-                  {CONTAINERS.map(c => (
+                  {(CONTAINERS[form.product_type] || CONTAINERS.extract).map(c => (
                     <button key={c} style={{ ...st.seg, ...(form.container_size === c ? st.segOn : {}) }}
                       onClick={() => set('container_size')(c)}>{c}</button>
                   ))}

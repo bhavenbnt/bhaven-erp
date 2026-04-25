@@ -34,11 +34,10 @@ const PRODUCT_TYPES = [
   { key: 'extract', label: '원액' },
   { key: 'can', label: '캔' },
 ];
-const CONTAINER_SIZES = [
-  { key: '500ml', label: '500ml' },
-  { key: '1L', label: '1L' },
-  { key: '2L', label: '2L' },
-];
+const CONTAINER_SIZES: Record<string, { key: string; label: string }[]> = {
+  extract: [{ key: '500ml', label: '500ml' }, { key: '1L', label: '1L' }, { key: '2L', label: '2L' }],
+  can: [{ key: '235ml', label: '235ml' }, { key: '330ml', label: '330ml' }],
+};
 
 function AdminReservationsContent() {
   const router = useRouter();
@@ -260,14 +259,14 @@ function AdminReservationsContent() {
                 <div style={s.segmentWrap}>
                   {PRODUCT_TYPES.map(t => (
                     <button key={t.key} style={{ ...s.segmentBtn, ...(createForm.product_type === t.key ? s.segmentActive : {}) }}
-                      onClick={() => setCreateForm(f => ({ ...f, product_type: t.key }))}>{t.label}</button>
+                      onClick={() => setCreateForm(f => ({ ...f, product_type: t.key, container_size: CONTAINER_SIZES[t.key][0].key }))}>{t.label}</button>
                   ))}
                 </div>
               </div>
               <div style={s.modalField}>
                 <label style={s.modalLabel}>용기</label>
                 <div style={s.segmentWrap}>
-                  {CONTAINER_SIZES.map(t => (
+                  {(CONTAINER_SIZES[createForm.product_type] || CONTAINER_SIZES.extract).map(t => (
                     <button key={t.key} style={{ ...s.segmentBtn, ...(createForm.container_size === t.key ? s.segmentActive : {}) }}
                       onClick={() => setCreateForm(f => ({ ...f, container_size: t.key }))}>{t.label}</button>
                   ))}
