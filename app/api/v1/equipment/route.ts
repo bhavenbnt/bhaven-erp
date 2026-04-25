@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       if (error.code === '23505') {
-        return Response.json({ error: '이미 사용 중인 설비 코드입니다.' }, { status: 409 });
+        return Response.json({ error: '동일한 기기명 혹은 기기코드를 사용할 수 없습니다.' }, { status: 409 });
       }
       throw error;
     }

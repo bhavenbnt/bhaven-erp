@@ -29,6 +29,16 @@ const STATUS_STYLE: Record<string, { color: string; bg: string; border: string }
 
 const PAGE_SIZE = 10;
 
+const PRODUCT_TYPES = [
+  { key: 'extract', label: '원액' },
+  { key: 'can', label: '캔' },
+];
+const CONTAINER_SIZES = [
+  { key: '500ml', label: '500ml' },
+  { key: '1L', label: '1L' },
+  { key: '2L', label: '2L' },
+];
+
 function AdminReservationsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,14 +52,111 @@ function AdminReservationsContent() {
   const [dateTo, setDateTo] = useState(dateParam);
   const [page, setPage] = useState(1);
 
+  // 예약 추가 모달
+  const [showCreate, setShowCreate] = useState(false);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [customerMode, setCustomerMode] = useState<'select' | 'direct'>('select');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [createForm, setCreateForm] = useState({
+    user_id: '', company_name: '', product_name: '', product_type: 'extract', container_size: '1L',
+    kg_amount: '', scheduled_date: '', notes: '',
+  });
+  const [createError, setCreateError] = useState('');
+  const [createLoading, setCreateLoading] = useState(false);
+  // 용량 검증
+  const [capacityStatus, setCapacityStatus] = useState<null | { canFit: boolean; available: number; total: number }>(null);
+  const [capacityLoading, setCapacityLoading] = useState(false);
+  const [forceCreate, setForceCreate] = useState(false);
+
   useEffect(() => {
     if (!user) router.replace('/login');
     else if (user.role !== 'admin') router.replace('/');
   }, [user, router]);
 
+  const loadReservations = () => api.get('/reservations').then(({ data }: any) => setReservations(data.data || [])).catch(() => {});
+
+  useEffect(() => { loadReservations(); }, []);
+
+  // 모달 열릴 때 고객 목록 로드
   useEffect(() => {
-    api.get('/reservations').then(({ data }: any) => setReservations(data.data || [])).catch(() => {});
-  }, []);
+    if (showCreate) {
+      api.get('/users?role=customer').then(({ data }: any) => setCustomers(data.data || [])).catch(() => {});
+    }
+  }, [showCreate]);
+
+  // 날짜 + 중량 변경 시 용량 검증
+  useEffect(() => {
+    const { scheduled_date, kg_amount } = createForm;
+    if (!scheduled_date || !kg_amount || Number(kg_amount) <= 0) {
+      setCapacityStatus(null); setForceCreate(false); return;
+    }
+    setCapacityLoading(true);
+    api.get(`/reservations/available-slots?start_date=${scheduled_date}&end_date=${scheduled_date}&min_kg=${kg_amount}`)
+      .then(({ data }: any) => {
+        const info = data.data;
+        if (info && typeof info === 'object' && !Array.isArray(info)) {
+          // 범위 응답 (동일 날짜)
+          const dayInfo = info[scheduled_date];
+          if (dayInfo) {
+            setCapacityStatus({ canFit: !!dayInfo.canFit, available: dayInfo.available, total: dayInfo.total });
+          } else {
+            setCapacityStatus(null);
+          }
+        } else {
+          // 단일 날짜 응답 (장비 목록)
+          setCapacityStatus({ canFit: Array.isArray(info) && info.length > 0, available: info?.length || 0, total: 0 });
+        }
+        setForceCreate(false);
+      })
+      .catch(() => setCapacityStatus(null))
+      .finally(() => setCapacityLoading(false));
+  }, [createForm.scheduled_date, createForm.kg_amount]);
+
+  const filteredCustomers = customers.filter(c => {
+    if (!customerSearch) return true;
+    const q = customerSearch.toLowerCase();
+    return (c.company_name || '').toLowerCase().includes(q) || (c.name || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q);
+  });
+
+  const handleCreate = async () => {
+    const isDirectInput = customerMode === 'direct';
+    if (isDirectInput && !createForm.company_name) {
+      setCreateError('업체명을 입력해주세요.'); return;
+    }
+    if (!isDirectInput && !createForm.user_id) {
+      setCreateError('고객사를 선택해주세요.'); return;
+    }
+    if (!createForm.product_name || !createForm.kg_amount || !createForm.scheduled_date) {
+      setCreateError('제품명, 중량, 생산일은 필수입니다.'); return;
+    }
+    if (capacityStatus && !capacityStatus.canFit && !forceCreate) {
+      setCreateError('용량이 부족합니다. 강제 생성하려면 "용량 초과 강제 생성"을 체크해주세요.'); return;
+    }
+    setCreateLoading(true); setCreateError('');
+    try {
+      const body: any = {
+        product_name: createForm.product_name,
+        product_type: createForm.product_type,
+        container_size: createForm.container_size,
+        kg_amount: Number(createForm.kg_amount),
+        scheduled_date: createForm.scheduled_date,
+        notes: createForm.notes,
+        force: forceCreate,
+      };
+      if (isDirectInput) {
+        body.company_name = createForm.company_name;
+      } else {
+        body.user_id = Number(createForm.user_id);
+      }
+      await api.post('/admin/create-reservation', body);
+      setShowCreate(false);
+      setCreateForm({ user_id: '', company_name: '', product_name: '', product_type: 'extract', container_size: '1L', kg_amount: '', scheduled_date: '', notes: '' });
+      setCapacityStatus(null); setForceCreate(false); setCustomerMode('select'); setCustomerSearch('');
+      loadReservations();
+    } catch (e: any) {
+      setCreateError(e.response?.data?.error || '예약 생성에 실패했습니다.');
+    } finally { setCreateLoading(false); }
+  };
 
   if (!user) return null;
 
@@ -81,14 +188,135 @@ function AdminReservationsContent() {
             <h1 style={s.pageTitle}>예약 관리</h1>
             <span style={s.totalBadge}>{reservations.length}건</span>
           </div>
-          <div style={s.searchWrap}>
-            {Icons.dashboard({ size: 14, color: '#BBB' })}
-            <input style={s.searchInput} placeholder="업체명, 제품명, 예약번호 검색"
-              value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(1); }} />
+          <div style={s.topRight}>
+            <div style={s.searchWrap}>
+              {Icons.dashboard({ size: 14, color: '#BBB' })}
+              <input style={s.searchInput} placeholder="업체명, 제품명, 예약번호 검색"
+                value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(1); }} />
+            </div>
+            <button style={s.createBtn} onClick={() => setShowCreate(true)}>
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+              <span>예약 추가</span>
+            </button>
           </div>
         </div>
       }
     >
+      {/* 예약 추가 모달 */}
+      {showCreate && (
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <div style={s.modalHeader}>
+              <span style={s.modalTitle}>예약 추가</span>
+              <button style={s.modalClose} onClick={() => { setShowCreate(false); setCreateError(''); }}>
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <p style={s.modalSub}>관리자가 직접 예약을 생성합니다. 승인 대기 없이 바로 확정됩니다.</p>
+            <div style={s.modalField}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={s.modalLabel}>고객사 <span style={{ color: '#B11F39' }}>*</span></label>
+                <div style={s.custToggle}>
+                  <button style={{ ...s.custToggleBtn, ...(customerMode === 'select' ? s.custToggleActive : {}) }}
+                    onClick={() => { setCustomerMode('select'); setCreateForm(f => ({ ...f, company_name: '' })); }}>기존 고객</button>
+                  <button style={{ ...s.custToggleBtn, ...(customerMode === 'direct' ? s.custToggleActive : {}) }}
+                    onClick={() => { setCustomerMode('direct'); setCreateForm(f => ({ ...f, user_id: '' })); }}>직접 입력</button>
+                </div>
+              </div>
+              {customerMode === 'select' ? (
+                <div style={{ position: 'relative' }}>
+                  <input style={s.modalInput} placeholder="업체명 또는 이름으로 검색..." value={customerSearch}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomerSearch(e.target.value)} />
+                  <select style={{ ...s.modalSelect, marginTop: 4 }} value={createForm.user_id}
+                    onChange={(e) => setCreateForm(f => ({ ...f, user_id: e.target.value }))}>
+                    <option value="">선택해주세요</option>
+                    {filteredCustomers.map((c: any) => (
+                      <option key={c.user_id} value={c.user_id}>{c.company_name || c.name} ({c.email})</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <input style={s.modalInput} placeholder="업체명 입력 (미등록 고객)" value={createForm.company_name}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreateForm(f => ({ ...f, company_name: e.target.value }))} />
+              )}
+            </div>
+            <div style={s.modalRow}>
+              <div style={s.modalField}>
+                <label style={s.modalLabel}>제품명 <span style={{ color: '#B11F39' }}>*</span></label>
+                <input style={s.modalInput} placeholder="제품명 입력" value={createForm.product_name}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreateForm(f => ({ ...f, product_name: e.target.value }))} />
+              </div>
+              <div style={s.modalField}>
+                <label style={s.modalLabel}>원두 중량 (kg) <span style={{ color: '#B11F39' }}>*</span></label>
+                <input style={s.modalInput} type="number" placeholder="0" min="1" value={createForm.kg_amount}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreateForm(f => ({ ...f, kg_amount: e.target.value }))} />
+              </div>
+            </div>
+            <div style={s.modalRow}>
+              <div style={s.modalField}>
+                <label style={s.modalLabel}>품목</label>
+                <div style={s.segmentWrap}>
+                  {PRODUCT_TYPES.map(t => (
+                    <button key={t.key} style={{ ...s.segmentBtn, ...(createForm.product_type === t.key ? s.segmentActive : {}) }}
+                      onClick={() => setCreateForm(f => ({ ...f, product_type: t.key }))}>{t.label}</button>
+                  ))}
+                </div>
+              </div>
+              <div style={s.modalField}>
+                <label style={s.modalLabel}>용기</label>
+                <div style={s.segmentWrap}>
+                  {CONTAINER_SIZES.map(t => (
+                    <button key={t.key} style={{ ...s.segmentBtn, ...(createForm.container_size === t.key ? s.segmentActive : {}) }}
+                      onClick={() => setCreateForm(f => ({ ...f, container_size: t.key }))}>{t.label}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div style={s.modalField}>
+              <label style={s.modalLabel}>생산 희망일 <span style={{ color: '#B11F39' }}>*</span></label>
+              <DatePicker value={createForm.scheduled_date}
+                onChange={(d) => setCreateForm(f => ({ ...f, scheduled_date: d }))}
+                minDate="2026-01-01" maxDate="2027-12-31" />
+            </div>
+            {/* 용량 검증 배너 */}
+            {capacityLoading && (
+              <div style={s.capacityBanner}>용량 확인 중...</div>
+            )}
+            {!capacityLoading && capacityStatus && (
+              capacityStatus.canFit ? (
+                <div style={s.capacityOk}>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth={2.5}><path d="M20 6L9 17l-5-5" /></svg>
+                  <span>해당일 생산 가능 (가용 기기 {capacityStatus.available}대)</span>
+                </div>
+              ) : (
+                <div style={s.capacityWarn}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#B11F39" strokeWidth={2.5}><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                    <span>해당일 용량 부족 (가용 기기 {capacityStatus.available}대 / 전체 {capacityStatus.total}대)</span>
+                  </div>
+                  <label style={s.forceLabel}>
+                    <input type="checkbox" checked={forceCreate} onChange={(e) => setForceCreate(e.target.checked)} style={{ accentColor: '#B11F39' }} />
+                    <span>용량 초과 강제 생성</span>
+                  </label>
+                </div>
+              )
+            )}
+            <div style={s.modalField}>
+              <label style={s.modalLabel}>비고</label>
+              <input style={s.modalInput} placeholder="선택 사항" value={createForm.notes}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreateForm(f => ({ ...f, notes: e.target.value }))} />
+            </div>
+            {createError && <div style={s.modalError}>{createError}</div>}
+            <div style={s.modalBtns}>
+              <button style={s.modalCancel} onClick={() => { setShowCreate(false); setCreateError(''); }}>취소</button>
+              <button style={s.modalConfirm} onClick={handleCreate} disabled={createLoading}>
+                {createLoading ? '생성 중...' : (capacityStatus && !capacityStatus.canFit && forceCreate ? '강제 생성' : '예약 생성')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 필터: 탭 + 날짜 */}
       <div style={s.filterBar}>
         <div style={s.tabRow}>
@@ -201,8 +429,15 @@ const s: Record<string, React.CSSProperties> = {
   // ── 상단 ──
   topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 16 },
   topLeft: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 },
+  topRight: { display: 'flex', alignItems: 'center', gap: 10 },
   pageTitle: { fontSize: 18, fontWeight: 700, color: '#0A0A0A', margin: 0, letterSpacing: -0.3 },
   totalBadge: { fontSize: 12, fontWeight: 600, color: '#999', background: '#F0F0F0', padding: '3px 10px', borderRadius: 20 },
+  createBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    padding: '9px 20px', background: '#B11F39', color: '#fff',
+    border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600,
+    cursor: 'pointer', boxShadow: '0 1px 3px rgba(177,31,57,0.25)', flexShrink: 0,
+  },
   searchWrap: {
     display: 'flex', alignItems: 'center', gap: 8,
     padding: '0 14px', height: 36, background: '#F5F5F5', borderRadius: 8,
@@ -289,4 +524,71 @@ const s: Record<string, React.CSSProperties> = {
     background: '#F0F0F0', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#999',
     marginLeft: 2,
   },
+
+  // ── 모달 ──
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  modal: {
+    background: '#fff', borderRadius: 12, padding: '24px 28px', width: 480,
+    display: 'flex', flexDirection: 'column', gap: 14,
+    border: '1px solid #EEEEEE', boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+  },
+  modalHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  modalTitle: { fontSize: 16, fontWeight: 700, color: '#0A0A0A' },
+  modalClose: { background: 'none', border: 'none', cursor: 'pointer', color: '#CCC', padding: 2, lineHeight: 0 },
+  modalSub: { fontSize: 12, color: '#999', margin: 0 },
+  modalRow: { display: 'flex', gap: 12 },
+  modalField: { display: 'flex', flexDirection: 'column', gap: 5, flex: 1 },
+  modalLabel: { fontSize: 11, fontWeight: 600, color: '#888' },
+  modalInput: {
+    padding: '0 14px', border: '1px solid #EEEEEE', borderRadius: 8,
+    fontSize: 13, outline: 'none', color: '#0A0A0A', background: '#FAFAFA', height: 38,
+  },
+  modalSelect: {
+    padding: '0 14px', border: '1px solid #EEEEEE', borderRadius: 8,
+    fontSize: 13, outline: 'none', color: '#0A0A0A', background: '#FAFAFA', height: 38,
+    cursor: 'pointer',
+  },
+  segmentWrap: {
+    display: 'flex', gap: 0, background: '#F5F5F5', borderRadius: 8, padding: 3,
+    border: '1px solid #EEEEEE',
+  },
+  segmentBtn: {
+    flex: 1, padding: '6px 0', border: 'none', background: 'transparent',
+    borderRadius: 6, fontSize: 12, fontWeight: 500, color: '#999', cursor: 'pointer',
+    textAlign: 'center',
+  },
+  segmentActive: { background: '#0A0A0A', color: '#fff', fontWeight: 600 },
+  modalError: {
+    padding: '8px 14px', borderRadius: 8, background: '#FDF2F4',
+    border: '1px solid #F5D0D6', color: '#B11F39', fontSize: 12, fontWeight: 500,
+  },
+  modalBtns: { display: 'flex', gap: 8, justifyContent: 'flex-end' },
+  modalCancel: { padding: '9px 20px', background: '#fff', color: '#666', border: '1px solid #EEEEEE', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
+  modalConfirm: { padding: '9px 20px', background: '#B11F39', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 3px rgba(177,31,57,0.25)' },
+  // 고객 토글
+  custToggle: { display: 'flex', gap: 0, background: '#F5F5F5', borderRadius: 6, padding: 2, border: '1px solid #EEEEEE' },
+  custToggleBtn: {
+    padding: '3px 10px', border: 'none', background: 'transparent',
+    borderRadius: 4, fontSize: 11, fontWeight: 500, color: '#999', cursor: 'pointer',
+  } as React.CSSProperties,
+  custToggleActive: { background: '#0A0A0A', color: '#fff', fontWeight: 600 },
+  // 용량 배너
+  capacityBanner: {
+    padding: '8px 14px', borderRadius: 8, background: '#F5F5F5',
+    border: '1px solid #EEEEEE', color: '#888', fontSize: 12,
+  } as React.CSSProperties,
+  capacityOk: {
+    padding: '8px 14px', borderRadius: 8, background: '#F0FDF4',
+    border: '1px solid #BBF7D0', color: '#16a34a', fontSize: 12, fontWeight: 500,
+    display: 'flex', alignItems: 'center', gap: 6,
+  } as React.CSSProperties,
+  capacityWarn: {
+    padding: '10px 14px', borderRadius: 8, background: '#FDF2F4',
+    border: '1px solid #F5D0D6', color: '#B11F39', fontSize: 12, fontWeight: 500,
+    display: 'flex', flexDirection: 'column', gap: 8,
+  } as React.CSSProperties,
+  forceLabel: {
+    display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600,
+    color: '#B11F39', cursor: 'pointer',
+  } as React.CSSProperties,
 };
