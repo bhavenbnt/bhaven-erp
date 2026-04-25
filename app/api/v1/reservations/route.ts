@@ -199,7 +199,6 @@ export async function POST(req: NextRequest) {
         product_name,
         product_type,
         container_size: container_size || '1L',
-        kg_amount,
         yield_rate,
         user_id: user.user_id,
       })
@@ -293,8 +292,8 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (err) {
-    console.error(err);
+  } catch (err: any) {
+    console.error('POST /reservations error:', err?.message, err?.code, err?.details, err?.hint);
     return Response.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

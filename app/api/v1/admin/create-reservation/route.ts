@@ -95,7 +95,6 @@ export async function POST(req: NextRequest) {
         product_name,
         product_type: product_type || 'extract',
         container_size: container_size || '1L',
-        kg_amount,
         yield_rate: yield_rate || 4.0,
         user_id: resolvedUserId,
       })
