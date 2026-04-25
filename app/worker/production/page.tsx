@@ -17,6 +17,7 @@ export default function WorkerProduction() {
   const { user } = useAuth();
   const [current, setCurrent] = useState(new Date());
   const [reservations, setReservations] = useState<any[]>([]);
+  const [holidays, setHolidays] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user) router.replace('/login');
@@ -29,9 +30,15 @@ export default function WorkerProduction() {
   useEffect(() => {
     const start = `${year}-${String(month + 1).padStart(2, '0')}-01`;
     const end = new Date(year, month + 1, 0).toISOString().split('T')[0];
-    api.get(`/reservations?date_from=${start}&date_to=${end}`)
-      .then(({ data }: any) => setReservations((data.data || []).filter((r: any) => r.status !== 'CANCELLED')))
-      .catch(() => {});
+    Promise.all([
+      api.get(`/reservations?date_from=${start}&date_to=${end}`).catch(() => ({ data: { data: [] } })),
+      api.get('/holidays').catch(() => ({ data: { data: [] } })),
+    ]).then(([resRes, holRes]: any[]) => {
+      setReservations((resRes.data.data || []).filter((r: any) => r.status !== 'CANCELLED'));
+      const hMap: Record<string, string> = {};
+      for (const h of holRes.data.data || []) hMap[h.holiday_date] = h.reason || '휴무';
+      setHolidays(hMap);
+    });
   }, [year, month]);
 
   if (!user) return null;
@@ -46,8 +53,12 @@ export default function WorkerProduction() {
   const today = new Date();
   const isToday = (d: number | null) => d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
+  const getDateStr = (day: number) => `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const isHoliday = (day: number) => !!holidays[getDateStr(day)];
+  const getHolidayReason = (day: number) => holidays[getDateStr(day)] || '';
+
   const getDayData = (day: number) => {
-    const d = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const d = getDateStr(day);
     const items = reservations.filter(r => r.scheduled_date?.startsWith(d));
     return { count: items.length, kg: items.reduce((s, r) => s + (r.kg_amount || 0), 0), items };
   };
@@ -85,12 +96,13 @@ export default function WorkerProduction() {
               const day = week[di] ?? null;
               const data = day ? getDayData(day) : null;
               return (
-                <div key={di} style={{ ...s.cell, background: isToday(day) ? '#FDF8F9' : '#fff', cursor: day && data && data.count > 0 ? 'pointer' : 'default', opacity: day === null ? 0.15 : 1, borderRight: di < 6 ? '1px solid #F0F0F0' : 'none', borderBottom: wi < weeks.length - 1 ? '1px solid #F0F0F0' : 'none' }}
+                <div key={di} style={{ ...s.cell, background: day !== null && isHoliday(day) ? '#F9FAFB' : isToday(day) ? '#FDF8F9' : '#fff', cursor: day && data && data.count > 0 ? 'pointer' : 'default', opacity: day === null ? 0.15 : 1, borderRight: di < 6 ? '1px solid #F0F0F0' : 'none', borderBottom: wi < weeks.length - 1 ? '1px solid #F0F0F0' : 'none' }}
                   onClick={() => day && data && data.count > 0 && router.push(`/worker/production/${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`)}>
                   {day !== null && (<>
                     <div style={s.dayTopRow}>
                       <span style={{ ...s.dayNum, color: di === 0 ? '#B11F39' : di === 6 ? '#666' : '#333', ...(isToday(day) ? s.todayNum : {}) }}>{day}</span>
-                      {data && data.kg > 0 && <span style={s.kgBadge}>{data.kg}kg</span>}
+                      {isHoliday(day) && <span style={s.holidayBadge}>{getHolidayReason(day)}</span>}
+                      {!isHoliday(day) && data && data.kg > 0 && <span style={s.kgBadge}>{data.kg}kg</span>}
                     </div>
                     {data && data.count > 0 && (
                       <div style={s.reservList}>
@@ -137,4 +149,5 @@ const s: Record<string, React.CSSProperties> = {
   reservBadge: { padding: '3px 6px', borderRadius: 3, background: '#FAFAFA', borderLeft: '2px solid #CCC', fontSize: 12 },
   reservEquip: { fontWeight: 600, color: '#333' },
   moreCount: { fontSize: 11, color: '#CCC', fontWeight: 500, paddingLeft: 4 },
+  holidayBadge: { fontSize: 10, fontWeight: 600, color: '#999', background: '#F0F0F0', borderRadius: 10, padding: '1px 7px', marginLeft: 'auto', border: '1px solid #E5E5E5' },
 };

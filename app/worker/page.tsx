@@ -25,6 +25,7 @@ export default function WorkerDashboard() {
   const [tomorrowCount, setTomorrowCount] = useState(0);
   const [weekData, setWeekData] = useState<{ date: Date; count: number; kg: number }[]>([]);
   const [equipFilter, setEquipFilter] = useState('all');
+  const [holidays, setHolidays] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 8;
   const today = new Date();
@@ -48,7 +49,11 @@ export default function WorkerDashboard() {
       api.get(`/reservations?date_from=${selectedDate}&date_to=${selectedDate}`).catch(() => ({ data: { data: [] } })),
       api.get(`/reservations?date_from=${tmrStr}&date_to=${tmrStr}`).catch(() => ({ data: { data: [] } })),
       api.get(`/reservations?date_from=${weekStart.toISOString().split('T')[0]}&date_to=${weekEnd.toISOString().split('T')[0]}`).catch(() => ({ data: { data: [] } })),
-    ]).then(([todayRes, tmrRes, weekRes]: any[]) => {
+      api.get('/holidays').catch(() => ({ data: { data: [] } })),
+    ]).then(([todayRes, tmrRes, weekRes, holRes]: any[]) => {
+      const hMap: Record<string, string> = {};
+      for (const h of holRes.data.data || []) hMap[h.holiday_date] = h.reason || '휴무';
+      setHolidays(hMap);
       setTodayList((todayRes.data.data || []).filter((r: any) => r.status !== 'CANCELLED'));
       setTomorrowCount((tmrRes.data.data || []).filter((r: any) => r.status !== 'CANCELLED').length);
 
@@ -226,6 +231,7 @@ export default function WorkerDashboard() {
               const ds = d.date.toISOString().split('T')[0];
               const isT = ds === todayStr;
               const isSel = ds === selectedDate;
+              const hol = holidays[ds];
               return (
                 <div key={i}
                   style={{ ...s.weekRow, ...(isSel ? s.weekRowSelected : {}), cursor: d.count > 0 ? 'pointer' : 'default' }}
@@ -235,7 +241,9 @@ export default function WorkerDashboard() {
                     <span style={{ ...s.weekDateLabel, color: isSel ? '#0A0A0A' : '#999' }}>{d.date.getMonth() + 1}/{d.date.getDate()}</span>
                   </div>
                   <div style={s.weekRowRight}>
-                    {d.count > 0 ? (
+                    {hol ? (
+                      <span style={s.weekHoliday}>{hol}</span>
+                    ) : d.count > 0 ? (
                       <>
                         <span style={s.weekRowCount}>{d.count}건</span>
                         <span style={s.weekRowKg}>{d.kg}kg</span>
@@ -329,6 +337,7 @@ const s: Record<string, React.CSSProperties> = {
   weekRowCount: { fontSize: 12, fontWeight: 600, color: '#0A0A0A' },
   weekRowKg: { fontSize: 11, color: '#999', fontFamily: "'Space Grotesk', sans-serif" },
   weekRowEmpty: { fontSize: 12, color: '#DDD' },
+  weekHoliday: { fontSize: 11, fontWeight: 600, color: '#999', background: '#F0F0F0', borderRadius: 10, padding: '1px 8px', border: '1px solid #E5E5E5' },
   historyLink: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
     padding: '8px 0', background: '#FAFAFA', border: '1px solid #F0F0F0', borderRadius: 6,
