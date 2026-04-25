@@ -5,6 +5,7 @@ import Layout from '@/components/Layout';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { Icons } from '@/components/icons';
+import { useDrag } from '@/lib/useDrag';
 
 export default function CustomerDetail() {
   const params = useParams();
@@ -15,6 +16,7 @@ export default function CustomerDetail() {
   const [reservations, setReservations] = useState<any[]>([]);
   const [successMsg, setSuccessMsg] = useState('');
   const [confirmModal, setConfirmModal] = useState<{ type: 'suspend' | 'unsuspend' | 'delete' } | null>(null);
+  const drag = useDrag();
 
   useEffect(() => {
     if (!user) router.replace('/login');
@@ -88,8 +90,8 @@ export default function CustomerDetail() {
       {/* 확인 모달 */}
       {confirmModal && (
         <div style={s.overlay}>
-          <div style={s.modal}>
-            <div style={s.modalTitle}>
+          <div style={{ ...s.modal, ...drag.modalStyle }}>
+            <div style={{ ...s.modalTitle, ...drag.handleStyle }} onMouseDown={drag.onMouseDown}>
               {confirmModal.type === 'suspend' && '계정을 정지하시겠습니까?'}
               {confirmModal.type === 'unsuspend' && '계정 정지를 해제하시겠습니까?'}
               {confirmModal.type === 'delete' && '계정을 삭제하시겠습니까?'}
@@ -100,7 +102,7 @@ export default function CustomerDetail() {
               {confirmModal.type === 'delete' && '삭제된 계정은 복구할 수 없습니다. 이 작업은 되돌릴 수 없습니다.'}
             </p>
             <div style={s.modalBtns}>
-              <button style={s.modalCancel} onClick={() => setConfirmModal(null)}>취소</button>
+              <button style={s.modalCancel} onClick={() => { setConfirmModal(null); drag.reset(); }}>취소</button>
               <button style={confirmModal.type === 'delete' ? s.modalDanger : s.modalConfirm}
                 onClick={() => {
                   if (confirmModal.type === 'suspend') suspend();

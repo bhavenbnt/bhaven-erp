@@ -5,6 +5,7 @@ import Layout from '@/components/Layout';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { Icons } from '@/components/icons';
+import { useDrag } from '@/lib/useDrag';
 
 const TABS = [
   { key: 'all', label: '전체' },
@@ -22,6 +23,7 @@ export default function Customers() {
   const [tab, setTab] = useState('all');
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
+  const drag = useDrag();
   const [createForm, setCreateForm] = useState({ email: '', password: '', name: '', company_name: '', contact_info: '' });
   const [createError, setCreateError] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
@@ -108,10 +110,10 @@ export default function Customers() {
       {/* 고객 등록 모달 */}
       {showCreate && (
         <div style={s.overlay}>
-          <div style={s.modal}>
-            <div style={s.modalHeader}>
+          <div style={{ ...s.modal, ...drag.modalStyle }}>
+            <div style={{ ...s.modalHeader, ...drag.handleStyle }} onMouseDown={drag.onMouseDown}>
               <span style={s.modalTitle}>고객 등록</span>
-              <button style={s.modalClose} onClick={() => { setShowCreate(false); setCreateError(''); }}>
+              <button style={s.modalClose} onClick={() => { setShowCreate(false); setCreateError(''); drag.reset(); }}>
                 <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             </div>

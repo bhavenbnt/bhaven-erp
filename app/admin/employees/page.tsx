@@ -5,6 +5,7 @@ import Layout from '@/components/Layout';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { Icons } from '@/components/icons';
+import { useDrag } from '@/lib/useDrag';
 
 const TABS = [
   { key: 'all', label: '전체' },
@@ -23,6 +24,8 @@ export default function Employees() {
   const [page, setPage] = useState(1);
   const [confirmModal, setConfirmModal] = useState<{ userId: number; action: string; label: string } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const dragCreate = useDrag();
+  const dragConfirm = useDrag();
   const [createForm, setCreateForm] = useState({ email: '', password: '', name: '', role: 'worker', contact_info: '' });
   const [createError, setCreateError] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
@@ -145,10 +148,10 @@ export default function Employees() {
       {/* 직원 등록 모달 */}
       {showCreate && (
         <div style={s.overlay}>
-          <div style={s.createModal}>
-            <div style={s.createModalHeader}>
+          <div style={{ ...s.createModal, ...dragCreate.modalStyle }}>
+            <div style={{ ...s.createModalHeader, ...dragCreate.handleStyle }} onMouseDown={dragCreate.onMouseDown}>
               <span style={s.createModalTitle}>직원 등록</span>
-              <button style={s.createModalClose} onClick={() => { setShowCreate(false); setCreateError(''); }}>
+              <button style={s.createModalClose} onClick={() => { setShowCreate(false); setCreateError(''); dragCreate.reset(); }}>
                 <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             </div>
@@ -200,11 +203,11 @@ export default function Employees() {
       {/* 확인 모달 */}
       {confirmModal && (
         <div style={s.overlay}>
-          <div style={s.modal}>
-            <div style={s.modalTitle}>{confirmModal.label}</div>
+          <div style={{ ...s.modal, ...dragConfirm.modalStyle }}>
+            <div style={{ ...s.modalTitle, ...dragConfirm.handleStyle }} onMouseDown={dragConfirm.onMouseDown}>{confirmModal.label}</div>
             <p style={s.modalSub}>이 작업을 진행하시겠습니까?</p>
             <div style={s.modalBtns}>
-              <button style={s.modalCancel} onClick={() => setConfirmModal(null)}>취소</button>
+              <button style={s.modalCancel} onClick={() => { setConfirmModal(null); dragConfirm.reset(); }}>취소</button>
               <button style={s.modalConfirm} onClick={execAction}>확인</button>
             </div>
           </div>

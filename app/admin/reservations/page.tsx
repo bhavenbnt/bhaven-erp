@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { Icons } from '@/components/icons';
 import DatePicker from '@/components/DatePicker';
+import { useDrag } from '@/lib/useDrag';
 
 const TABS = [
   { key: 'all', label: '전체' },
@@ -53,6 +54,7 @@ function AdminReservationsContent() {
   const [page, setPage] = useState(1);
 
   // 예약 추가 모달
+  const drag = useDrag();
   const [showCreate, setShowCreate] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
   const [customerMode, setCustomerMode] = useState<'select' | 'direct'>('select');
@@ -151,7 +153,7 @@ function AdminReservationsContent() {
       await api.post('/admin/create-reservation', body);
       setShowCreate(false);
       setCreateForm({ user_id: '', company_name: '', product_name: '', product_type: 'extract', container_size: '1L', kg_amount: '', scheduled_date: '', notes: '' });
-      setCapacityStatus(null); setForceCreate(false); setCustomerMode('select'); setCustomerSearch('');
+      setCapacityStatus(null); setForceCreate(false); setCustomerMode('select'); setCustomerSearch(''); drag.reset();
       loadReservations();
     } catch (e: any) {
       setCreateError(e.response?.data?.error || '예약 생성에 실패했습니다.');
@@ -205,10 +207,10 @@ function AdminReservationsContent() {
       {/* 예약 추가 모달 */}
       {showCreate && (
         <div style={s.overlay}>
-          <div style={s.modal}>
-            <div style={s.modalHeader}>
+          <div style={{ ...s.modal, ...drag.modalStyle }}>
+            <div style={{ ...s.modalHeader, ...drag.handleStyle }} onMouseDown={drag.onMouseDown}>
               <span style={s.modalTitle}>예약 추가</span>
-              <button style={s.modalClose} onClick={() => { setShowCreate(false); setCreateError(''); }}>
+              <button style={s.modalClose} onClick={() => { setShowCreate(false); setCreateError(''); drag.reset(); }}>
                 <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             </div>

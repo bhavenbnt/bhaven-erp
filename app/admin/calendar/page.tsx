@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { Icons } from '@/components/icons';
 import DatePicker from '@/components/DatePicker';
+import { useDrag } from '@/lib/useDrag';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const STATUS_STYLE: Record<string, { color: string }> = {
@@ -29,6 +30,7 @@ export default function AdminCalendar() {
   const [holidayReason, setHolidayReason] = useState('');
   const [toast, setToast] = useState('');
   const [holidayConfirm, setHolidayConfirm] = useState<{ count: number } | null>(null);
+  const drag = useDrag();
 
   useEffect(() => {
     if (!user) router.replace('/login');
@@ -273,14 +275,14 @@ export default function AdminCalendar() {
       {/* 휴무일 등록 확인 모달 */}
       {holidayConfirm && (
         <div style={s.overlay}>
-          <div style={s.confirmModal}>
-            <div style={s.confirmTitle}>예약이 있는 날짜입니다</div>
+          <div style={{ ...s.confirmModal, ...drag.modalStyle }}>
+            <div style={{ ...s.confirmTitle, ...drag.handleStyle }} onMouseDown={drag.onMouseDown}>예약이 있는 날짜입니다</div>
             <p style={s.confirmSub}>
               {holidayDate}에 <strong>{holidayConfirm.count}건</strong>의 예약이 있습니다.
               휴무일로 등록하면 기존 예약은 관리자가 별도로 일정을 변경해야 합니다.
             </p>
             <div style={s.confirmBtns}>
-              <button style={s.confirmCancel} onClick={() => setHolidayConfirm(null)}>취소</button>
+              <button style={s.confirmCancel} onClick={() => { setHolidayConfirm(null); drag.reset(); }}>취소</button>
               <button style={s.confirmOk} onClick={() => addHoliday()}>등록</button>
             </div>
           </div>

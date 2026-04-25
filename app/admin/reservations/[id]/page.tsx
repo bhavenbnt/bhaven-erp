@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { Icons } from '@/components/icons';
 import DatePicker from '@/components/DatePicker';
+import { useDrag } from '@/lib/useDrag';
 
 const STATUS_LABEL: Record<string, string> = { PENDING: '승인 대기', CONFIRMED: '예약 확정', IN_PROGRESS: '생산 중', COMPLETED: '완료', CANCELLED: '취소' };
 const STATUS_STYLE: Record<string, { color: string; bg: string; border: string }> = {
@@ -27,6 +28,7 @@ export default function AdminReservationDetail() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [rejectModal, setRejectModal] = useState(false);
+  const drag = useDrag();
   const [rejectReason, setRejectReason] = useState('');
   const [reassignEqId, setReassignEqId] = useState('');
   const [reassignReason, setReassignReason] = useState('');
@@ -116,10 +118,10 @@ export default function AdminReservationDetail() {
       {/* 반려 모달 */}
       {rejectModal && (
         <div style={s.overlay}>
-          <div style={s.modal}>
-            <div style={s.modalHeader}>
+          <div style={{ ...s.modal, ...drag.modalStyle }}>
+            <div style={{ ...s.modalHeader, ...drag.handleStyle }} onMouseDown={drag.onMouseDown}>
               <span style={s.modalTitle}>예약 반려</span>
-              <button style={s.modalClose} onClick={closeReject}>
+              <button style={s.modalClose} onClick={() => { closeReject(); drag.reset(); }}>
                 <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             </div>
