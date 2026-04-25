@@ -163,7 +163,7 @@ export default function ShipmentList() {
                     </td>
                     <td style={{ ...s.td, textAlign: 'center' }}>
                       {r._shipped
-                        ? <span style={{ fontSize: 11, color: '#BBB' }}>완료</span>
+                        ? <button style={s.detailBtn} onClick={() => router.push(`/worker/shipment/${r.reservation_id}`)}>상세</button>
                         : <button style={s.shipBtn} onClick={() => router.push(`/worker/shipment/${r.reservation_id}`)}>출고 처리</button>
                       }
                     </td>
@@ -221,6 +221,7 @@ const s: Record<string, React.CSSProperties> = {
   tdMono: { padding: '14px 20px', fontSize: 13, color: '#333', fontFamily: "'Space Grotesk', monospace", fontWeight: 500 },
   statusBadge: { display: 'inline-block', padding: '4px 0', width: 72, textAlign: 'center' as const, borderRadius: 6, fontSize: 11, fontWeight: 600, borderStyle: 'solid', borderWidth: 1 },
   shipBtn: { padding: '5px 12px', background: '#fff', color: '#B11F39', border: '1px solid #F5D0D6', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' },
+  detailBtn: { padding: '5px 12px', background: '#fff', color: '#666', border: '1px solid #EEEEEE', borderRadius: 6, fontSize: 11, fontWeight: 500, cursor: 'pointer' },
   emptyRow: { padding: '60px 20px', textAlign: 'center' as const },
   emptyContent: { display: 'inline-flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8, color: '#CCC', fontSize: 13 },
 
