@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       .from('holidays')
       .select('holiday_id')
       .eq('holiday_date', scheduled_date)
-      .single();
+      .maybeSingle();
 
     if (holiday) {
       return Response.json({ error: '해당 날짜는 휴무일입니다. 다른 날짜를 선택해주세요.' }, { status: 400 });
@@ -68,12 +68,17 @@ export async function POST(req: NextRequest) {
 
     if (user_id) {
       // 기존 고객 확인
-      const { data: customer } = await supabase
+      const { data: customer, error: custError } = await supabase
         .from('users')
         .select('user_id, role')
         .eq('user_id', user_id)
         .eq('role', 'customer')
-        .single();
+        .maybeSingle();
+
+      if (custError) {
+        console.error('Customer lookup failed:', custError.message);
+        return Response.json({ error: '고객 정보 조회에 실패했습니다. 잠시 후 다시 시도해주세요.' }, { status: 500 });
+      }
 
       if (!customer) {
         return Response.json({ error: '존재하지 않는 고객입니다.' }, { status: 400 });
@@ -125,8 +130,8 @@ export async function POST(req: NextRequest) {
     }
 
     return Response.json({ status: 'success', data: reservation }, { status: 201 });
-  } catch (err) {
-    console.error(err);
+  } catch (err: any) {
+    console.error('POST /admin/create-reservation error:', err?.message, err?.code, err?.details, err?.hint);
     return Response.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }
