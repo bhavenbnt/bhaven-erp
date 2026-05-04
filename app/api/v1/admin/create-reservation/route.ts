@@ -2,6 +2,46 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth';
 
+// 자동 배정: 가용 기기 중 가장 여유 있는 기기에 배정
+async function findBestEquipment(kg_amount: number, scheduled_date: string): Promise<number | null> {
+  const { data: equipment } = await supabase
+    .from('equipment')
+    .select('equipment_id, max_capacity, status')
+    .eq('status', 'NORMAL');
+
+  const { data: existingRes } = await supabase
+    .from('reservations')
+    .select('equipment_id, kg_amount')
+    .eq('scheduled_date', scheduled_date)
+    .neq('status', 'CANCELLED');
+
+  const usageMap: Record<number, number> = {};
+  for (const r of existingRes ?? []) {
+    usageMap[r.equipment_id] = (usageMap[r.equipment_id] ?? 0) + (r.kg_amount ?? 0);
+  }
+
+  const available = (equipment ?? [])
+    .map(eq => ({
+      equipment_id: eq.equipment_id,
+      remaining: eq.max_capacity - (usageMap[eq.equipment_id] ?? 0),
+    }))
+    .filter(eq => eq.remaining >= kg_amount)
+    .sort((a, b) => b.remaining - a.remaining);
+
+  return available[0]?.equipment_id ?? null;
+}
+
+// 강제 생성 시: 아무 정상 기기나 반환
+async function getAnyEquipment(): Promise<number | null> {
+  const { data } = await supabase
+    .from('equipment')
+    .select('equipment_id')
+    .eq('status', 'NORMAL')
+    .limit(1)
+    .single();
+  return data?.equipment_id ?? null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const result = requireAuth(req, 'admin');
@@ -29,45 +69,23 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: '해당 날짜는 휴무일입니다. 다른 날짜를 선택해주세요.' }, { status: 400 });
     }
 
-    // 용량 검증 (force가 아닌 경우)
-    if (!force) {
-      const { data: equipment } = await supabase
-        .from('equipment')
-        .select('equipment_id, max_capacity, status')
-        .neq('status', 'BROKEN')
-        .neq('status', 'MAINTENANCE');
+    // 장비 배정
+    let equipmentId = await findBestEquipment(kg_amount, scheduled_date);
 
-      const { data: existingRes } = await supabase
-        .from('reservations')
-        .select('equipment_id, kg_amount')
-        .eq('scheduled_date', scheduled_date)
-        .neq('status', 'CANCELLED');
+    if (!equipmentId && !force) {
+      return Response.json({ error: `해당일 용량이 부족합니다. 강제 생성하려면 확인 후 다시 시도해주세요.` }, { status: 400 });
+    }
 
-      const usageMap: Record<number, number> = {};
-      for (const r of existingRes ?? []) {
-        usageMap[r.equipment_id] = (usageMap[r.equipment_id] ?? 0) + (r.kg_amount ?? 0);
-      }
-
-      const eqList = (equipment ?? []).map(eq => ({
-        max_capacity: eq.max_capacity,
-        remaining: eq.max_capacity - (usageMap[eq.equipment_id] ?? 0),
-      })).filter(eq => eq.remaining > 0).sort((a, b) => b.remaining - a.remaining);
-
-      let remaining = kg_amount;
-      for (const eq of eqList) {
-        if (remaining <= 0) break;
-        remaining -= Math.min(remaining, eq.remaining);
-      }
-
-      if (remaining > 0) {
-        return Response.json({ error: `해당일 용량이 부족합니다 (초과 ${remaining}kg). 강제 생성하려면 확인 후 다시 시도해주세요.` }, { status: 400 });
+    if (!equipmentId && force) {
+      equipmentId = await getAnyEquipment();
+      if (!equipmentId) {
+        return Response.json({ error: '등록된 정상 기기가 없습니다.' }, { status: 400 });
       }
     }
 
     let resolvedUserId = user_id;
 
     if (user_id) {
-      // 기존 고객 확인
       const { data: customer, error: custError } = await supabase
         .from('users')
         .select('user_id, role')
@@ -84,11 +102,9 @@ export async function POST(req: NextRequest) {
         return Response.json({ error: '존재하지 않는 고객입니다.' }, { status: 400 });
       }
     } else {
-      // 직접 입력: 관리자 본인 user_id로 생성, 업체명은 notes에 포함
       resolvedUserId = result.user.user_id;
     }
 
-    // notes에 직접입력 업체명 추가
     const finalNotes = company_name && !user_id
       ? `[직접입력] 업체: ${company_name}${notes ? ' | ' + notes : ''}`
       : (notes || null);
@@ -108,13 +124,13 @@ export async function POST(req: NextRequest) {
 
     if (productError) throw productError;
 
-    // 예약 생성 (CONFIRMED, 장비 미배정)
+    // 예약 생성 (CONFIRMED, 장비 배정)
     const { data: reservation, error: resError } = await supabase
       .from('reservations')
       .insert({
         user_id: resolvedUserId,
         product_id: product.product_id,
-        equipment_id: null,
+        equipment_id: equipmentId,
         kg_amount,
         scheduled_date,
         notes: finalNotes,
@@ -124,7 +140,6 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (resError) {
-      // 고아 제품 정리
       await supabase.from('products').delete().eq('product_id', product.product_id);
       throw resError;
     }
